@@ -1,0 +1,2 @@
+#define pico_main_VERSION_MAJOR @pico_main_VERSION_MAJOR@
+#define pico_main_VERSION_MINOR @pico_main_VERSION_MINOR@
