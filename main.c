@@ -15,6 +15,9 @@ int main() {
     const uint led_pin = 25;
     const uint button1_pin = 20;
 
+    enum window_state state = 0;
+    enum window_state last_state = state;
+
     gpio_init(led_pin);
     gpio_set_dir(led_pin, GPIO_OUT);
     
@@ -44,26 +47,39 @@ int main() {
 
     LCD_2IN_Display((uint8_t * )BlackImage);
    
-    Paint_Clear(RED);
-    opening_screen();
     Paint_Clear(RAISIN);
+    // opening_screen();
+    // DEV_Delay_ms(1000);
+    // Paint_Clear(RAISIN);
 
+    int (*render_func_ptr)(void) = &opening_screen;
+    int (*last_func_ptr)(void);
 
     while(1){
+
+        if (last_state != state) {
+            Paint_Clear(RAISIN);
+            last_state = state;
+        }
 
         gpio_put(led_pin, true);
         sleep_ms(1000);
         gpio_put(led_pin, false);
         sleep_ms(1000);
 
+        state = (*render_func_ptr)();
 
-        // Paint_DrawImage1(gImage_2inch_1,0,0,320,240);
-        LCD_2IN_Display((UBYTE *)BlackImage);
-        DEV_Delay_ms(10);
-        
-   	    Paint_DrawString_EN(8, 8, "Main Menu", &Font24, WHITE, RAISIN);
-       		
-		LCD_2IN_Display((uint8_t * )BlackImage);             
+        switch (state) {
+            case 0:
+                (render_func_ptr) = &opening_screen;
+            case 1:
+                (render_func_ptr) = &main_menu;
+            default:
+                (render_func_ptr) = &main_menu;
+
+        }
+
+         
     }
 
     /* Module Exit */

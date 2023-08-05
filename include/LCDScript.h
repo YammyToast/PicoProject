@@ -13,10 +13,10 @@
 
 int initialize_settings(UDOUBLE, UWORD*);
 
-void opening_screen(void);
+int opening_screen(void);
 
-void runtime_main(void);
+int main_menu(void);
 
-
+enum window_state;
 
 #endif
