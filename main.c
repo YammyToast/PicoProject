@@ -1,5 +1,7 @@
 #include "pico/stdlib.h"
 
+#include <stdio.h>
+
 #include "DEV_Config.h"
 #include "GUI_Paint.h"
 #include "Debug.h"
@@ -12,7 +14,7 @@
 #include "LCDScript.c"
 
 int main() {
-    const uint led_pin = 25;
+    const uint led_pin = 0;
     const uint button1_pin = 20;
 
     enum window_state state = 0;
@@ -55,33 +57,43 @@ int main() {
     int (*render_func_ptr)(void) = &opening_screen;
     int (*last_func_ptr)(void);
 
+    int counter = 0;
+
     while(1){
 
-        if (last_state != state) {
-            Paint_Clear(RAISIN);
-            last_state = state;
+        // if (last_state != state) {
+        //     Paint_Clear(RAISIN);
+        //     last_state = state;
+        // }
+
+        if (counter >= 10) {
+            counter = 0;
         }
 
-        gpio_put(led_pin, true);
-        sleep_ms(1000);
-        gpio_put(led_pin, false);
-        sleep_ms(1000);
+        // gpio_put(led_pin, true);
+        // sleep_ms(1000);
+        // gpio_put(led_pin, false);
+        // sleep_ms(1000);
 
-        state = (*render_func_ptr)();
+        // printf("PING");
+        // Paint_Clear(RAISIN);
+        // // state = (*render_func_ptr)();
 
-        switch (state) {
-            case 0:
-                (render_func_ptr) = &opening_screen;
-            case 1:
-                (render_func_ptr) = &main_menu;
-            default:
-                (render_func_ptr) = &main_menu;
+        // // switch (state) {
+        // //     case 0:
+        // //         (render_func_ptr) = &opening_screen;
+        // //     case 1:
+        // //         (render_func_ptr) = &main_menu;
+        // //     default:
+        // //         (render_func_ptr) = &main_menu;
 
-        }
-
-         
+        // // }
+        // char count[15];
+        // snprintf(count, 15, "Count: %d", counter);
+        DEV_Delay_ms(1000);
+        Paint_DrawString_EN(8, counter, "Test", &Font24, WHITE, RAISIN);
+        counter = counter + 1;
     }
-
     /* Module Exit */
     free(BlackImage);
     BlackImage = NULL;

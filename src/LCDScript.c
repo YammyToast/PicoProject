@@ -24,7 +24,6 @@ enum window_state {
 
 int initialize_settings(UDOUBLE _image_size, UWORD *_black_image) {
     DEV_Delay_ms(100);
-    ("LCD_2in_test Demo\r\n");
     if(DEV_Module_Init()!=0){
         return -1;
     }
