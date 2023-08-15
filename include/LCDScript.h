@@ -11,11 +11,13 @@
 
 #include "LCD_2in.h"
 
+void opening_screen_update_callback(int*, UWORD*);
+
 int initialize_settings(UDOUBLE, UWORD*);
 
-int opening_screen(void);
+int opening_screen(UWORD*);
 
-int main_menu(void);
+int main_menu(UWORD*);
 
 enum window_state;
 

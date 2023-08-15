@@ -12,88 +12,45 @@
 
 #include "LCD_2in.h"
 #include "LCDScript.c"
-
 int main() {
-    const uint led_pin = 0;
-    const uint button1_pin = 20;
 
-    enum window_state state = 0;
-    enum window_state last_state = state;
-
-    gpio_init(led_pin);
-    gpio_set_dir(led_pin, GPIO_OUT);
+    DEV_Delay_ms(100);
+    printf("LCD_2in_test Demo\r\n");
+    if(DEV_Module_Init()!=0){
+        return -1;
+    }
+    DEV_SET_PWM(50);
+    /* LCD Init */
+    printf("2inch LCD demo...\r\n");
+    LCD_2IN_Init(HORIZONTAL);
+    LCD_2IN_Clear(WHITE);
     
-    gpio_set_dir(button1_pin, GPIO_IN);
-
+    //LCD_SetBacklight(1023);
     UDOUBLE Imagesize = LCD_2IN_HEIGHT*LCD_2IN_WIDTH*2;
     UWORD *BlackImage;
-
-    if(initialize_settings(Imagesize, BlackImage)!=0) {
-        printf("Failed to initialize settings... \r\n");
-        exit(0);
-    }
-
     if((BlackImage = (UWORD *)malloc(Imagesize)) == NULL) {
         printf("Failed to apply for black memory...\r\n");
-        return -1;
+        exit(0);
     }
     // /*1.Create a new image cache named IMAGE_RGB and fill it with white*/
     Paint_NewImage((UBYTE *)BlackImage,LCD_2IN.WIDTH,LCD_2IN.HEIGHT, 90, WHITE);
-
-    // Don't change this value or else everything fucking dies
     Paint_SetScale(65);
-
-    Paint_SetRotate(ROTATE_270);
-    // /* GUI */
-
-
-    LCD_2IN_Display((uint8_t * )BlackImage);
-   
     Paint_Clear(RAISIN);
-    // opening_screen();
-    // DEV_Delay_ms(1000);
-    // Paint_Clear(RAISIN);
+    Paint_SetRotate(ROTATE_270);
 
-    int (*render_func_ptr)(void) = &opening_screen;
-    int (*last_func_ptr)(void);
-
-    int counter = 0;
-
+    opening_screen(BlackImage);
+    Paint_Clear(RAISIN);
     while(1){
 
-        // if (last_state != state) {
-        //     Paint_Clear(RAISIN);
-        //     last_state = state;
-        // }
-
-        if (counter >= 10) {
-            counter = 0;
-        }
-
-        // gpio_put(led_pin, true);
-        // sleep_ms(1000);
-        // gpio_put(led_pin, false);
-        // sleep_ms(1000);
-
-        // printf("PING");
-        // Paint_Clear(RAISIN);
-        // // state = (*render_func_ptr)();
-
-        // // switch (state) {
-        // //     case 0:
-        // //         (render_func_ptr) = &opening_screen;
-        // //     case 1:
-        // //         (render_func_ptr) = &main_menu;
-        // //     default:
-        // //         (render_func_ptr) = &main_menu;
-
-        // // }
-        // char count[15];
-        // snprintf(count, 15, "Count: %d", counter);
+        printf("PING\n");
+        // int pingchar[15];
+        // snprintf(pingchar, 15, "Drawing: %d", counter);
+   	    // Paint_DrawString_EN(8, counter, pingchar, &Font20, WHITE, RAISIN);
+        main_menu(BlackImage);
         DEV_Delay_ms(1000);
-        Paint_DrawString_EN(8, counter, "Test", &Font24, WHITE, RAISIN);
-        counter = counter + 1;
+		LCD_2IN_Display((uint8_t * )BlackImage);             
     }
+
     /* Module Exit */
     free(BlackImage);
     BlackImage = NULL;

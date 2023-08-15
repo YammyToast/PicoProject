@@ -14,6 +14,8 @@
 #include "LCDScript.h"
 #include "ProjectConfig.h"
 
+const int loading_bar_height = 16;
+
 enum window_state {
     Opening = 0,
     MainMenu,
@@ -39,7 +41,38 @@ int initialize_settings(UDOUBLE _image_size, UWORD *_black_image) {
     return 0;
 }
 
-int opening_screen(void) {
+void opening_screen_update_callback(int* _percentage, UWORD* _black_image) {
+        int percentage = *_percentage;
+        int loading_bar_current = (LCD_2IN_WIDTH - 18) * (percentage) / 100;
+        printf("Loading: %d, Bar-Length: %d\n", percentage, loading_bar_current);
+        char cPercentage[16];
+        snprintf(cPercentage, 16, "Percentage: %d", percentage);
+        Paint_DrawString_EN(8, 64, cPercentage, &Font16, WHITE, RAISIN);
+        
+        Paint_DrawRectangle(
+            9,
+            LCD_2IN_HEIGHT - (6 + loading_bar_height),
+            LCD_2IN_WIDTH - (9),
+            LCD_2IN_HEIGHT - 8,
+            RAISIN,
+            1,
+            1   
+        );
+
+        Paint_DrawRectangle(
+            9,
+            LCD_2IN_HEIGHT - (6 + loading_bar_height),
+            (9 + loading_bar_current),
+            LCD_2IN_HEIGHT - 8,
+            RED,
+            1,
+            1   
+        );
+        LCD_2IN_Display((uint8_t * )_black_image); 
+
+}
+
+int opening_screen(UWORD* _black_image ) {
     char version[15];
 
     Paint_DrawString_EN(8, 8, "WaifuWatch", &Font24, WHITE, RAISIN);
@@ -49,8 +82,6 @@ int opening_screen(void) {
     Paint_DrawString_EN(8, 40, version, &Font16, WHITE, RAISIN);
 
     int percentage = 0;
-    int loading_bar_height = 16;
-    int loading_bar_current = 0;
         
     Paint_DrawRectangle(
         8,
@@ -62,50 +93,20 @@ int opening_screen(void) {
         DRAW_FILL_EMPTY
     );
 
-    // for(int i = 0; i < 100; i++) {
-    //     char cPercentage[15];
-    //     snprintf(cPercentage, 15, "Percentage: %d", i);
-    //     Paint_DrawString_EN(8, 64, cPercentage, &Font16, WHITE, RAISIN);
-
-    // }
 
 
-    // while(percentage < 100) {
-    //     loading_bar_current = (LCD_2IN_WIDTH - 9) * (percentage / 100);
+    while(percentage <= 100) {
+        opening_screen_update_callback(&percentage, _black_image);
+        sleep_ms(1000);
+        percentage = percentage + 20;
 
-    //     char cPercentage[15];
-    //     // snprintf(cPercentage, 15, "Percentage: %d", percentage);
-    //     // Paint_DrawString_EN(8, 64, cPercentage, &Font16, WHITE, RAISIN);
-        
-    //     // Paint_DrawRectangle(
-    //     //     9,
-    //     //     LCD_2IN_HEIGHT - (6 + loading_bar_height),
-    //     //     LCD_2IN_WIDTH - (9),
-    //     //     LCD_2IN_HEIGHT - 8,
-    //     //     RAISIN,
-    //     //     1,
-    //     //     1   
-    //     // );
-
-    //     // Paint_DrawRectangle(
-    //     //     9,
-    //     //     LCD_2IN_HEIGHT - (6 + loading_bar_height),
-    //     //     (8 + percentage),
-    //     //     LCD_2IN_HEIGHT - 8,
-    //     //     RED,
-    //     //     1,
-    //     //     1   
-    //     // );
-    //     sleep_ms(10);
-    //     percentage = percentage + 1;
-
-    // }
-    // DEV_Delay_ms(1000);
-    sleep_ms(5000);
+    }
+    DEV_Delay_ms(1000);
+    LCD_2IN_Display((uint8_t * )_black_image);     
     return 1;
 }
 
-int main_menu(void) {
+int main_menu(UWORD* _black_image) {
     // Paint_DrawImage1(gImage_2inch_1,0,0,320,240);
     // UDOUBLE Imagesize = LCD_2IN_HEIGHT*LCD_2IN_WIDTH*2;
     // UWORD *BlackImage;
@@ -118,7 +119,7 @@ int main_menu(void) {
     // LCD_2IN_Display((uint8_t * )BlackImage);    
 
     Paint_DrawString_EN(8, 8, "MainMenu", &Font24, WHITE, RAISIN);
-
+    LCD_2IN_Display((uint8_t * )_black_image);     
     return 1;
 
     
