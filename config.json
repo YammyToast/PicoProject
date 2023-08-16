@@ -1,6 +1,11 @@
 {
     "widgets": [
-        
+        {
+            "displayName": "Time",
+            "headerPath": "/time/time.h",
+            "mainPath": "/time/time.c",
+            "scripts": "."
+        }
 
     ]
 

@@ -4,6 +4,7 @@
 
 1 - Run configure.sh to assemble linker.
     ```
+    bash ./configure.sh
     ```
 
 2 - Create build directory if it doesn't already exist.
