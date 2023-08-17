@@ -61,10 +61,10 @@ void opening_screen_update_callback(int* _percentage, UWORD* _black_image) {
 
         Paint_DrawRectangle(
             9,
-            LCD_2IN_HEIGHT - (6 + loading_bar_height),
+            LCD_2IN_HEIGHT - (7 + loading_bar_height),
             (9 + loading_bar_current),
             LCD_2IN_HEIGHT - 8,
-            RED,
+            GREEN,
             1,
             1   
         );
