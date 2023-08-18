@@ -5,6 +5,9 @@ import json
 from enum import Enum
 import re
 import shutil
+from dataclasses import dataclass
+import time
+from csnake import CodeWriter, Variable, FormattedLiteral, Function
 
 """
     Attribute Name | Data Type | isFile?
@@ -34,6 +37,17 @@ FUNCTION_WIDGET_SCHEMA_MAIN = [
     ("update", r"^((voidupdate\(void\)){1}[\{\} ]*)$")
 ]
 
+@dataclass
+class LinkerWidget:
+    display_name: str
+    origin_header_file: str
+    origin_main_file: str
+    origin_script_file: str
+    target_header_file: str
+    target_main_file: str
+    target_script_file: str 
+
+
 class InvalidFilePath(Exception):
     def __init__(self, _file_path_str: str):
         super().__init__(f"Couldn't find file: \'{_file_path_str}\'")
@@ -61,6 +75,10 @@ def verify_file_path(_file_path: str) -> bool:
         return True
     return False
 
+def extract_file_name(_file_name: str) -> str:
+    return _file_name.split("/")[-1]
+
+
 # ================================================================================================================
 # ================================================================================================================
 
@@ -81,9 +99,7 @@ def verify_config_part(_part: dict, _schema: list, _directory: str) -> list[tupl
         print_log(f"Parameter \'{attribute[0]}: {_part.get(attribute[0])}\' ok.")
     return missing
 
-def verify_file_data(_data: str, _schema: list) -> list[tuple[str, str]]:
-    
-    print("VERIFY")
+
 
 def load_config_file(_config_file_path: str, _directory: str) -> dict:
     try:
@@ -207,23 +223,92 @@ def make_output_directory(_clear_generated: bool):
         raise
 
 
+
+def compile_linker_widget_data(_widget_data: list, _origin_directory: str, _target_directory: str) -> list[LinkerWidget]:
+    data = []
+    for widget in _widget_data:
+        data.append(
+            LinkerWidget(
+                widget.get("displayName"),
+                os.path.join(_origin_directory + widget.get("headerPath")),
+                os.path.join(_origin_directory + widget.get("mainPath")),
+                os.path.join(_origin_directory + widget.get("scripts")),
+
+                os.path.join(_target_directory + "/" + 
+                widget.get("displayName") + "/" +
+                extract_file_name(widget.get("headerPath"))),
+                os.path.join(_target_directory + "/" +
+                widget.get("displayName") + "/" +
+                extract_file_name(widget.get("mainPath"))),
+                os.path.join(_target_directory + "/" +
+                widget.get("displayName") + "/" +
+                extract_file_name(widget.get("scripts")))
+
+            )
+        )
+    return data
+
+def make_target_directories(_widget_data: list[LinkerWidget], _target_directory: str):
+    for widget in _widget_data:
+        path = f"{_target_directory}/{widget.display_name}"
+        Path(path).mkdir(exist_ok=False)
+        print_log(f"Created directory: \'{path}\'")
+
+def copy_target_files(_widget_data: list[LinkerWidget], _target_directory):
+    for widget in _widget_data:
+        destination = f"{_target_directory}/{widget.display_name}/"
+        print_log(f"Cloning File: \'{widget.origin_header_file}\'")
+        shutil.copy(widget.origin_header_file, destination)
+        print_log(f"Cloning File: \'{widget.origin_main_file}\'")
+        shutil.copy(widget.origin_main_file, destination)
+        # shutil.copyfile(widget.origin_script_file, widget.target_script_file)
+
 # ================================================================================================================
 # ================================================================================================================
 
+def write_linker_file_header(_widget_data: list[LinkerWidget], _target_directory: str):
+    cwr = CodeWriter()
+    cwr.add_autogen_comment('configure.py')
+    cwr.start_if_def("_LINKER_HEADER_")
+    
+    for widget in _widget_data:
+        print(widget)
+    # cwr.include()
 
-def main(_config_file_path: str, _clear_generated: bool, _directory: str="./mods"):
+    main_function = Function(
+        "LINKER_FUNCTION_POINTERS"
+
+    )
+
+    cwr.end_if_def()
+    print(cwr)
+    print("WRITE HEADER")
+
+def write_linker_file_main(_widget_data: list[LinkerWidget], _target_directory: str):
+    print("WRITE MAIN")
+
+# ================================================================================================================
+# ================================================================================================================
+
+def main(_config_file_path: str, _clear_generated: bool, _origin_directory: str="./mods"):
+    target_directory = "./generated"
     print_log(f"Using config file: {_config_file_path}")
-    json_config_data = load_config_file(_config_file_path, _directory)
-    # print(f"Data: {json_config_data}")
+    json_config_data = load_config_file(_config_file_path, _origin_directory)
     print_log(f"Verified config file")
     print_log(f"Verifying file contents")    
-    verify_widget_contents(json_config_data.get("widgets"), _directory)
+    verify_widget_contents(json_config_data.get("widgets"), _origin_directory)
     print("\n")
     print_log(f"Generating widget bindings...")
     make_output_directory(_clear_generated)
+    linker_widget_data = compile_linker_widget_data(json_config_data.get("widgets"), _origin_directory, target_directory)
+    make_target_directories(linker_widget_data, target_directory)
+    copy_target_files(linker_widget_data, target_directory)
+    write_linker_file_header(linker_widget_data, target_directory)
+    write_linker_file_main(linker_widget_data, target_directory)
 
 
 if __name__ == '__main__':
+    start_ts = time.time()
     argv_config_file = "./config.json"
     argv_clear_generated = True
     if '-c' in sys.argv:
@@ -238,5 +323,6 @@ if __name__ == '__main__':
 
 
     main(argv_config_file, argv_clear_generated);
-
+    end_ts = time.time()
+    print("\nFinished. Completed in {:2f} seconds.".format(end_ts - start_ts))
 

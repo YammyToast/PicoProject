@@ -1,5 +1,5 @@
-#ifndef TIME
-#define TIME
+#ifndef TIME_H
+#define TIME_H
 
 void display(void);
 void thumbnail(void);
