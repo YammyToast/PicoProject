@@ -17,7 +17,6 @@ CONFIG_WIDGET_SCHEMA = [
     ("headerPath", str, True),
     ("mainPath", str, True),
     ("scripts", str, False),
-    # ("bean", str, True)
 ]
 
 """
@@ -49,7 +48,7 @@ class LinkerWidget:
     target_script_file: str 
 
 FUNC_PTR_TYPE = FuncPtr("void")
-RETURN_TYPE_STRUCT = Struct("widget_link", typedef=False)
+RETURN_TYPE_STRUCT = Struct("widget_link", typedef=True)
 RETURN_TYPE_STRUCT.add_variable(("display", FUNC_PTR_TYPE))
 RETURN_TYPE_STRUCT.add_variable(("thumbnail", FUNC_PTR_TYPE))
 RETURN_TYPE_STRUCT.add_variable(("settings", FUNC_PTR_TYPE))
@@ -243,9 +242,12 @@ def compile_linker_widget_data(_widget_data: list, _origin_directory: str, _targ
                 os.path.join(_origin_directory + widget.get("mainPath")),
                 os.path.join(_origin_directory + widget.get("scripts")),
 
-                os.path.join(target_location + "/" + extract_file_name(widget.get("headerPath"))),
-                os.path.join(target_location + "/" + extract_file_name(widget.get("mainPath"))),
-                os.path.join(target_location + "/" + extract_file_name(widget.get("scripts"))),
+                os.path.join(widget.get("displayName") + "/" + extract_file_name(widget.get("headerPath"))),
+                os.path.join(widget.get("displayName") + "/" + extract_file_name(widget.get("mainPath"))),
+                os.path.join(widget.get("displayName") + "/" + extract_file_name(widget.get("scripts"))),
+                # os.path.join(target_location + "/" + extract_file_name(widget.get("headerPath"))),
+                # os.path.join(target_location + "/" + extract_file_name(widget.get("mainPath"))),
+                # os.path.join(target_location + "/" + extract_file_name(widget.get("scripts"))),
                 # os.path.join(_target_directory + "/" + 
                 # widget.get("displayName") + "/" +
                 # extract_file_name(widget.get("headerPath"))),
@@ -266,14 +268,34 @@ def make_target_directories(_widget_data: list[LinkerWidget], _target_directory:
         Path(path).mkdir(exist_ok=False)
         print_log(f"Created directory: \'{path}\'")
 
-def copy_target_files(_widget_data: list[LinkerWidget], _target_directory):
+def modify_target_file(_file_data: str, _widget_display_name: str, _schema: list):
+    split_data = _file_data.split("\n")
+    line_num = 0
+    for line in split_data:
+        squash_line = ''.join(line.split())
+        for pattern in _schema:
+            if re.search(pattern[1], squash_line) != None:
+                # SWITCH THIS TO CSNAKE IMPLEMENTATION
+                segmented_line = line.split()
+                suffix = "" if _schema == FUNCTION_WIDGET_SCHEMA_HEADER else "{"
+                split_data[line_num] = segmented_line[0] + " " + _widget_display_name + "_" + segmented_line[1] + suffix
+                continue;
+        line_num += 1
+    return ('\n'.join(split_data))
+
+def translate_target_files(_widget_data: list[LinkerWidget], _target_directory):
     for widget in _widget_data:
         destination = f"{_target_directory}/{widget.display_name}/"
-        print_log(f"Cloning File: \'{widget.origin_header_file}\'")
-        shutil.copy(widget.origin_header_file, destination)
-        print_log(f"Cloning File: \'{widget.origin_main_file}\'")
-        shutil.copy(widget.origin_main_file, destination)
-        # shutil.copyfile(widget.origin_script_file, widget.target_script_file)
+        origin_header = widget.origin_header_file
+        origin_main = widget.origin_main_file
+        modified_header = modify_target_file(read_file_raw(origin_header), widget.display_name, FUNCTION_WIDGET_SCHEMA_HEADER)
+        modified_main = modify_target_file(read_file_raw(origin_main), widget.display_name, FUNCTION_WIDGET_SCHEMA_MAIN)
+
+        with open(os.path.join(_target_directory + "/" + widget.target_header_file), 'w') as header_file:
+            header_file.write(str(modified_header))   
+        with open(os.path.join(_target_directory + "/" + widget.target_main_file), 'w') as main_file:
+            main_file.write(str(modified_main))            
+
 
 # ================================================================================================================
 # ================================================================================================================
@@ -283,12 +305,14 @@ def write_linker_file_header(_widget_data: list[LinkerWidget], _target_directory
     cwr.add_autogen_comment('configure.py')
     cwr.start_if_def("_LINKER_HEADER_", invert=True)
     cwr.add_define("_LINKER_HEADER_")
+    for widget in _widget_data:
+        cwr.include(widget.target_header_file)
     cwr.add_struct(RETURN_TYPE_STRUCT)
 
-    return_array = Variable("return_array_variable", "widget_link", array=len(_widget_data))
+    # return_array = Variable("return_array_variable", "widget_link", array=len(_widget_data))
     main_function = Function(
         "LINKER_FUNCTION_POINTERS",
-        return_type=return_array.generate_declaration()
+        return_type="struct widget_link*"
 
     )
     cwr.add_function_prototype(main_function)
@@ -298,6 +322,27 @@ def write_linker_file_header(_widget_data: list[LinkerWidget], _target_directory
 
 def write_linker_file_main(_widget_data: list[LinkerWidget], _target_directory: str):
     print("WRITE MAIN")
+    cwr = CodeWriter()
+    cwr.add_autogen_comment('configure.py')
+    cwr.start_if_def("_LINKER_MAIN_", invert=True)
+    cwr.add_define("_LINKER_MAIN_")
+    cwr.include("linker.h")
+
+    for widget in _widget_data:
+        cwr.include(widget.target_header_file)
+
+    main_function = Function(
+        "LINKER_FUNCTION_POINTERS",
+        return_type="widget_link*"
+
+    )
+    malloc_statement = f"widget_link* functions = malloc(sizeof(struct widget_link) * {len(_widget_data)});"
+    main_function.add_code(malloc_statement)
+    cwr.add_function_definition(main_function)
+    cwr.end_if_def()
+    with open(os.path.join(_target_directory + "/" + "linker.c"), 'w') as main_file:
+        main_file.write(str(cwr))
+
 
 # ================================================================================================================
 # ================================================================================================================
@@ -314,9 +359,13 @@ def main(_config_file_path: str, _clear_generated: bool, _origin_directory: str=
     make_output_directory(_clear_generated)
     linker_widget_data = compile_linker_widget_data(json_config_data.get("widgets"), _origin_directory, target_directory)
     make_target_directories(linker_widget_data, target_directory)
-    copy_target_files(linker_widget_data, target_directory)
+
+    translate_target_files(linker_widget_data, target_directory)
+
     write_linker_file_header(linker_widget_data, target_directory)
+    print_log(f"Generated \'linker.h\'.")
     write_linker_file_main(linker_widget_data, target_directory)
+    print_log(f"Generated \'linker.c\'.")
 
 
 if __name__ == '__main__':
