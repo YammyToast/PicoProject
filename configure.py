@@ -7,7 +7,7 @@ import re
 import shutil
 from dataclasses import dataclass
 import time
-from csnake import CodeWriter, Variable, FormattedLiteral, Function
+from csnake import CodeWriter, Variable, FormattedLiteral, Function, FuncPtr, Struct
 
 """
     Attribute Name | Data Type | isFile?
@@ -39,6 +39,7 @@ FUNCTION_WIDGET_SCHEMA_MAIN = [
 
 @dataclass
 class LinkerWidget:
+    target_location: str
     display_name: str
     origin_header_file: str
     origin_main_file: str
@@ -47,6 +48,12 @@ class LinkerWidget:
     target_main_file: str
     target_script_file: str 
 
+FUNC_PTR_TYPE = FuncPtr("void")
+RETURN_TYPE_STRUCT = Struct("widget_link", typedef=False)
+RETURN_TYPE_STRUCT.add_variable(("display", FUNC_PTR_TYPE))
+RETURN_TYPE_STRUCT.add_variable(("thumbnail", FUNC_PTR_TYPE))
+RETURN_TYPE_STRUCT.add_variable(("settings", FUNC_PTR_TYPE))
+RETURN_TYPE_STRUCT.add_variable(("update", FUNC_PTR_TYPE))
 
 class InvalidFilePath(Exception):
     def __init__(self, _file_path_str: str):
@@ -227,22 +234,27 @@ def make_output_directory(_clear_generated: bool):
 def compile_linker_widget_data(_widget_data: list, _origin_directory: str, _target_directory: str) -> list[LinkerWidget]:
     data = []
     for widget in _widget_data:
+        target_location = os.path.join(_target_directory + "/" + widget.get("displayName"))
         data.append(
             LinkerWidget(
+                target_location,
                 widget.get("displayName"),
                 os.path.join(_origin_directory + widget.get("headerPath")),
                 os.path.join(_origin_directory + widget.get("mainPath")),
                 os.path.join(_origin_directory + widget.get("scripts")),
 
-                os.path.join(_target_directory + "/" + 
-                widget.get("displayName") + "/" +
-                extract_file_name(widget.get("headerPath"))),
-                os.path.join(_target_directory + "/" +
-                widget.get("displayName") + "/" +
-                extract_file_name(widget.get("mainPath"))),
-                os.path.join(_target_directory + "/" +
-                widget.get("displayName") + "/" +
-                extract_file_name(widget.get("scripts")))
+                os.path.join(target_location + "/" + extract_file_name(widget.get("headerPath"))),
+                os.path.join(target_location + "/" + extract_file_name(widget.get("mainPath"))),
+                os.path.join(target_location + "/" + extract_file_name(widget.get("scripts"))),
+                # os.path.join(_target_directory + "/" + 
+                # widget.get("displayName") + "/" +
+                # extract_file_name(widget.get("headerPath"))),
+                # os.path.join(_target_directory + "/" +
+                # widget.get("displayName") + "/" +
+                # extract_file_name(widget.get("mainPath"))),
+                # os.path.join(_target_directory + "/" +
+                # widget.get("displayName") + "/" +
+                # extract_file_name(widget.get("scripts")))
 
             )
         )
@@ -269,20 +281,20 @@ def copy_target_files(_widget_data: list[LinkerWidget], _target_directory):
 def write_linker_file_header(_widget_data: list[LinkerWidget], _target_directory: str):
     cwr = CodeWriter()
     cwr.add_autogen_comment('configure.py')
-    cwr.start_if_def("_LINKER_HEADER_")
-    
-    for widget in _widget_data:
-        print(widget)
-    # cwr.include()
+    cwr.start_if_def("_LINKER_HEADER_", invert=True)
+    cwr.add_define("_LINKER_HEADER_")
+    cwr.add_struct(RETURN_TYPE_STRUCT)
 
+    return_array = Variable("return_array_variable", "widget_link", array=len(_widget_data))
     main_function = Function(
-        "LINKER_FUNCTION_POINTERS"
+        "LINKER_FUNCTION_POINTERS",
+        return_type=return_array.generate_declaration()
 
     )
-
+    cwr.add_function_prototype(main_function)
     cwr.end_if_def()
-    print(cwr)
-    print("WRITE HEADER")
+    with open(os.path.join(_target_directory + "/" + "linker.h"), 'w') as header_file:
+        header_file.write(str(cwr))
 
 def write_linker_file_main(_widget_data: list[LinkerWidget], _target_directory: str):
     print("WRITE MAIN")
