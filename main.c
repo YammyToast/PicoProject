@@ -1,6 +1,5 @@
 #include "pico/stdlib.h"
 
-#include <stdio.h>
 
 #include "DEV_Config.h"
 #include "GUI_Paint.h"
@@ -12,6 +11,12 @@
 
 #include "LCD_2in.h"
 #include "LCDScript.c"
+
+#include "linker.h"
+#include "linker.c"
+#include "Time/time.h"
+#include "Time/time.c"
+
 int main() {
 
     DEV_Delay_ms(100);
@@ -33,13 +38,18 @@ int main() {
         exit(0);
     }
     // /*1.Create a new image cache named IMAGE_RGB and fill it with white*/
+
     Paint_NewImage((UBYTE *)BlackImage,LCD_2IN.WIDTH,LCD_2IN.HEIGHT, 90, WHITE);
     Paint_SetScale(65);
     Paint_Clear(RAISIN);
     Paint_SetRotate(ROTATE_270);
 
+    printf("COUNT: %d\n", linker_widget_count);
+
     opening_screen(BlackImage);
     Paint_Clear(RAISIN);
+
+
     while(1){
 
         printf("PING\n");
@@ -55,7 +65,7 @@ int main() {
     free(BlackImage);
     BlackImage = NULL;
     
-    
+    // free(widget_func_ptrs);
     DEV_Module_Exit();
     return 0;
 

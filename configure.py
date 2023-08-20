@@ -23,17 +23,17 @@ CONFIG_WIDGET_SCHEMA = [
     Function Name | Pattern
 """
 FUNCTION_WIDGET_SCHEMA_HEADER = [
-    ("display", r"^(voiddisplay\(void\);){1}$"),
-    ("thumbnail", r"^(voidthumbnail\(void\);){1}$"),
-    ("settings", r"^(voidsettings\(void\);){1}$"),
-    ("update", r"^(voidupdate\(void\);){1}$")
+    ("display", r"^(voiddisplay\(UWORD\*\);){1}$"),
+    ("thumbnail", r"^(voidthumbnail\(UWORD\*\);){1}$"),
+    ("settings", r"^(voidsettings\(UWORD\*\);){1}$"),
+    ("update", r"^(voidupdate\(UWORD\*\);){1}$")
 ]
 
 FUNCTION_WIDGET_SCHEMA_MAIN = [
-    ("display", r"^((voiddisplay\(void\)){1}[\{\} ]*)$"),
-    ("thumbnail", r"^((voidthumbnail\(void\)){1}[\{\} ]*)$"),
-    ("settings", r"^((voidsettings\(void\)){1}[\{\} ]*)$"),
-    ("update", r"^((voidupdate\(void\)){1}[\{\} ]*)$")
+    ("display", r"^((voiddisplay\(UWORD\*.+\)){1}[\{\} ]*)$"),
+    ("thumbnail", r"^((voidthumbnail\(UWORD\*.+\)){1}[\{\} ]*)$"),
+    ("settings", r"^((voidsettings\(UWORD\*.+\)){1}[\{\} ]*)$"),
+    ("update", r"^((voidupdate\(UWORD\*.+\)){1}[\{\} ]*)$")
 ]
 
 @dataclass
@@ -53,6 +53,9 @@ RETURN_TYPE_STRUCT.add_variable(("display", FUNC_PTR_TYPE))
 RETURN_TYPE_STRUCT.add_variable(("thumbnail", FUNC_PTR_TYPE))
 RETURN_TYPE_STRUCT.add_variable(("settings", FUNC_PTR_TYPE))
 RETURN_TYPE_STRUCT.add_variable(("update", FUNC_PTR_TYPE))
+
+BLACK_IMG_PTR = Variable("black_image", "UWORD*")
+
 
 class InvalidFilePath(Exception):
     def __init__(self, _file_path_str: str):
@@ -277,8 +280,9 @@ def modify_target_file(_file_data: str, _widget_display_name: str, _schema: list
             if re.search(pattern[1], squash_line) != None:
                 # SWITCH THIS TO CSNAKE IMPLEMENTATION
                 segmented_line = line.split()
-                suffix = "" if _schema == FUNCTION_WIDGET_SCHEMA_HEADER else "{"
-                split_data[line_num] = segmented_line[0] + " " + _widget_display_name + "_" + segmented_line[1] + suffix
+                split_data[line_num] = (segmented_line[0] + 
+                " " + _widget_display_name +
+                "_" + ''.join(segmented_line[1:]))
                 continue;
         line_num += 1
     return ('\n'.join(split_data))
@@ -305,41 +309,24 @@ def write_linker_file_header(_widget_data: list[LinkerWidget], _target_directory
     cwr.add_autogen_comment('configure.py')
     cwr.start_if_def("_LINKER_HEADER_", invert=True)
     cwr.add_define("_LINKER_HEADER_")
-    for widget in _widget_data:
-        cwr.include(widget.target_header_file)
-    cwr.add_struct(RETURN_TYPE_STRUCT)
 
-    # return_array = Variable("return_array_variable", "widget_link", array=len(_widget_data))
-    main_function = Function(
-        "LINKER_FUNCTION_POINTERS",
-        return_type="struct widget_link*"
+    # length_variable = Variable("widget", "int", value=len(_widget_data))
+    cwr.add_define("linker_widget_count", len(_widget_data))
 
-    )
-    cwr.add_function_prototype(main_function)
     cwr.end_if_def()
     with open(os.path.join(_target_directory + "/" + "linker.h"), 'w') as header_file:
         header_file.write(str(cwr))
 
 def write_linker_file_main(_widget_data: list[LinkerWidget], _target_directory: str):
-    print("WRITE MAIN")
+    print(" MAIN")
     cwr = CodeWriter()
     cwr.add_autogen_comment('configure.py')
     cwr.start_if_def("_LINKER_MAIN_", invert=True)
     cwr.add_define("_LINKER_MAIN_")
     cwr.include("linker.h")
 
-    for widget in _widget_data:
-        cwr.include(widget.target_header_file)
-
-    main_function = Function(
-        "LINKER_FUNCTION_POINTERS",
-        return_type="widget_link*"
-
-    )
-    malloc_statement = f"widget_link* functions = malloc(sizeof(struct widget_link) * {len(_widget_data)});"
-    main_function.add_code(malloc_statement)
-    cwr.add_function_definition(main_function)
     cwr.end_if_def()
+
     with open(os.path.join(_target_directory + "/" + "linker.c"), 'w') as main_file:
         main_file.write(str(cwr))
 
