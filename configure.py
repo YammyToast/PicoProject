@@ -47,14 +47,17 @@ class LinkerWidget:
     target_main_file: str
     target_script_file: str 
 
-FUNC_PTR_TYPE = FuncPtr("void")
-RETURN_TYPE_STRUCT = Struct("widget_link", typedef=True)
-RETURN_TYPE_STRUCT.add_variable(("display", FUNC_PTR_TYPE))
-RETURN_TYPE_STRUCT.add_variable(("thumbnail", FUNC_PTR_TYPE))
-RETURN_TYPE_STRUCT.add_variable(("settings", FUNC_PTR_TYPE))
-RETURN_TYPE_STRUCT.add_variable(("update", FUNC_PTR_TYPE))
-
 BLACK_IMG_PTR = Variable("black_image", "UWORD*")
+
+
+FUNC_PTR_TYPE = FuncPtr("void", arguments=([BLACK_IMG_PTR]))
+RETURN_TYPE_STRUCT = Struct("widget_link", typedef=True)
+RETURN_TYPE_STRUCT.add_variable(("display", "API_FUNC"))
+RETURN_TYPE_STRUCT.add_variable(("thumbnail", "API_FUNC"))
+RETURN_TYPE_STRUCT.add_variable(("settings", "API_FUNC"))
+RETURN_TYPE_STRUCT.add_variable(("update", "API_FUNC"))
+
+
 
 
 class InvalidFilePath(Exception):
@@ -311,19 +314,53 @@ def write_linker_file_header(_widget_data: list[LinkerWidget], _target_directory
     cwr.add_define("_LINKER_HEADER_")
 
     # length_variable = Variable("widget", "int", value=len(_widget_data))
-    cwr.add_define("linker_widget_count", len(_widget_data))
+    cwr.add_line(f"typedef {FUNC_PTR_TYPE.get_declaration('API_FUNC')};")
+    cwr.add_struct(RETURN_TYPE_STRUCT)
+    
+    for widget in _widget_data:
+        cwr.include(widget.target_header_file)
+        cwr.include(widget.target_main_file)
+        widget_var = Variable(widget.display_name, RETURN_TYPE_STRUCT.name, qualifiers=(["const"]))
+        cwr.add_variable_declaration(widget_var)
+
+    widget_list_var = Variable("widget_links", RETURN_TYPE_STRUCT.name, qualifiers=(["const"]), array=len(_widget_data))
+    cwr.add_variable_declaration(widget_list_var)
+    
+    widget_count_var = Variable("widget_count", "int")
+    cwr.add_variable_declaration(widget_count_var)
 
     cwr.end_if_def()
     with open(os.path.join(_target_directory + "/" + "linker.h"), 'w') as header_file:
         header_file.write(str(cwr))
 
 def write_linker_file_main(_widget_data: list[LinkerWidget], _target_directory: str):
-    print(" MAIN")
     cwr = CodeWriter()
     cwr.add_autogen_comment('configure.py')
     cwr.start_if_def("_LINKER_MAIN_", invert=True)
     cwr.add_define("_LINKER_MAIN_")
     cwr.include("linker.h")
+    
+    widget_links_var = f"const widget_link widget_links[{len(_widget_data)}] ="
+    widget_links_var += "{" 
+    for widget in _widget_data:
+        cwr.include(widget.target_header_file)
+        cwr.include(widget.target_main_file)
+        widget_var = f"const widget_link {widget.display_name} ="
+        widget_var += "{"
+        widget_var += f".display = *{widget.display_name}_display,"
+        widget_var += f".thumbnail = *{widget.display_name}_thumbnail,"
+        widget_var += f".settings = *{widget.display_name}_settings,"
+        widget_var += f".update = *{widget.display_name}_update,"
+        widget_var += "};"
+        cwr.add_line(widget_var)
+
+        widget_links_var += f"{widget.display_name},"
+    widget_links_var += "};"
+    cwr.add_line(widget_links_var)
+    
+    widget_count_var = Variable("widget_count", "int")
+    cwr.add_variable_declaration(widget_count_var)
+
 
     cwr.end_if_def()
 

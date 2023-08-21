@@ -44,7 +44,9 @@ int main() {
     Paint_Clear(RAISIN);
     Paint_SetRotate(ROTATE_270);
 
-    printf("COUNT: %d\n", linker_widget_count);
+    printf("COUNT: %d\n", widget_count);
+    // printf("LINK: %d\n", widget_links[0]);
+    (widget_links[0].display)(BlackImage);
 
     opening_screen(BlackImage);
     Paint_Clear(RAISIN);
