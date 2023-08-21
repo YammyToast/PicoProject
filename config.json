@@ -5,6 +5,12 @@
             "headerPath": "/time/time.h",
             "mainPath": "/time/time.c",
             "scripts": "."
+        },
+        {
+            "displayName": "Schedule",
+            "headerPath": "/schedule/time.h",
+            "mainPath": "/schedule/time.c",
+            "scripts": "."
         }
     ]
 

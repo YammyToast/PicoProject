@@ -12,7 +12,6 @@
 #define TIME_MAIN
 
 UWORD *BlackImage;
-UDOUBLE Imagesize = LCD_2IN_HEIGHT*LCD_2IN_WIDTH*2;
 
 void display(UWORD* black_image) {
 

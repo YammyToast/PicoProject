@@ -326,7 +326,7 @@ def write_linker_file_header(_widget_data: list[LinkerWidget], _target_directory
     widget_list_var = Variable("widget_links", RETURN_TYPE_STRUCT.name, qualifiers=(["const"]), array=len(_widget_data))
     cwr.add_variable_declaration(widget_list_var)
     
-    widget_count_var = Variable("widget_count", "int")
+    widget_count_var = Variable("widget_count", "int", qualifiers=(["const"]))
     cwr.add_variable_declaration(widget_count_var)
 
     cwr.end_if_def()
@@ -358,8 +358,8 @@ def write_linker_file_main(_widget_data: list[LinkerWidget], _target_directory: 
     widget_links_var += "};"
     cwr.add_line(widget_links_var)
     
-    widget_count_var = Variable("widget_count", "int")
-    cwr.add_variable_declaration(widget_count_var)
+    widget_count_var = Variable("widget_count", "int", value=len(_widget_data), qualifiers=(["const"]))
+    cwr.add_variable_initialization(widget_count_var)
 
 
     cwr.end_if_def()

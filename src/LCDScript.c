@@ -36,6 +36,10 @@ int initialize_settings(UDOUBLE _image_size, UWORD *_black_image) {
     
     LCD_2IN_SetBacklight(1);
 
+    Paint_NewImage((UBYTE *)_black_image,LCD_2IN.WIDTH,LCD_2IN.HEIGHT, 90, WHITE);
+    Paint_SetScale(65);
+    Paint_Clear(RAISIN);
+    Paint_SetRotate(ROTATE_270);
 
 
     return 0;

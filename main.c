@@ -14,22 +14,10 @@
 
 #include "linker.h"
 #include "linker.c"
-#include "Time/time.h"
-#include "Time/time.c"
+
+const float split_ratio = 0.375;
 
 int main() {
-
-    DEV_Delay_ms(100);
-    printf("LCD_2in_test Demo\r\n");
-    if(DEV_Module_Init()!=0){
-        return -1;
-    }
-    DEV_SET_PWM(50);
-    /* LCD Init */
-    printf("2inch LCD demo...\r\n");
-    LCD_2IN_Init(HORIZONTAL);
-    LCD_2IN_Clear(WHITE);
-    
     //LCD_SetBacklight(1023);
     UDOUBLE Imagesize = LCD_2IN_HEIGHT*LCD_2IN_WIDTH*2;
     UWORD *BlackImage;
@@ -37,30 +25,46 @@ int main() {
         printf("Failed to apply for black memory...\r\n");
         exit(0);
     }
-    // /*1.Create a new image cache named IMAGE_RGB and fill it with white*/
 
-    Paint_NewImage((UBYTE *)BlackImage,LCD_2IN.WIDTH,LCD_2IN.HEIGHT, 90, WHITE);
-    Paint_SetScale(65);
-    Paint_Clear(RAISIN);
-    Paint_SetRotate(ROTATE_270);
 
-    printf("COUNT: %d\n", widget_count);
-    // printf("LINK: %d\n", widget_links[0]);
-    (widget_links[0].display)(BlackImage);
+
+    initialize_settings(Imagesize, BlackImage);
+    
+    // (widget_links[0].display)(BlackImage);
+    // DEV_Delay_ms(2000);
+    // Paint_Clear(RAISIN);
+    // DEV_Delay_ms(2000);
+    // (widget_links[1].display)(BlackImage);
+    // DEV_Delay_ms(2000);
+    // Paint_Clear(RAISIN);
+    // DEV_Delay_ms(2000);
 
     opening_screen(BlackImage);
-    Paint_Clear(RAISIN);
 
+    Paint_Clear(RAISIN);
+    printf("MAX: %d\n", widget_count);
+    int rotate = 0;
 
     while(1){
+        if(rotate > (widget_count - 1)) {
+            rotate = 0;
+        }
+        // printf("PING %d\n", rotate);
+        DEV_Delay_ms(1000);
+        (widget_links[rotate].display)(BlackImage);
+        DEV_Delay_ms(1000);
+        Paint_Clear(RAISIN);
+        rotate = rotate + 1;
+        
+        printf("RATIO: %.6f\n", split_ratio);
 
-        printf("PING\n");
         // int pingchar[15];
         // snprintf(pingchar, 15, "Drawing: %d", counter);
    	    // Paint_DrawString_EN(8, counter, pingchar, &Font20, WHITE, RAISIN);
-        main_menu(BlackImage);
-        DEV_Delay_ms(1000);
-		LCD_2IN_Display((uint8_t * )BlackImage);             
+        // main_menu(BlackImage);
+
+
+		// LCD_2IN_Display((uint8_t * )BlackImage);             
     }
 
     /* Module Exit */
