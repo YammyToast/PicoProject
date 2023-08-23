@@ -1,10 +1,8 @@
 #include "pico/stdlib.h"
 
-
 #include "DEV_Config.h"
 #include "GUI_Paint.h"
 #include "Debug.h"
-#include "ImageData.h"
 #include <stdlib.h> // malloc() free()
 #include <string.h>
 #include <stdio.h>
@@ -26,8 +24,6 @@ int main() {
         exit(0);
     }
 
-
-
     initialize_settings(Imagesize, BlackImage);
     
     // (widget_links[0].display)(BlackImage);
@@ -42,29 +38,22 @@ int main() {
     opening_screen(BlackImage);
 
     Paint_Clear(RAISIN);
-    printf("MAX: %d\n", widget_count);
-    int rotate = 0;
 
+    int padding = 8;
+    int calculated_frame_height = LCD_2IN_HEIGHT - (2 * padding);
+    int calculated_frame_width = LCD_2IN_WIDTH - (2 * padding);
+    
+    // int image_frame_height = (int)(calculated_frame_height * split_ratio);
+    // int widget_frame_height = (int)(calculated_frame_height * (1 - split_ratio));
+    
     while(1){
-        if(rotate > (widget_count - 1)) {
-            rotate = 0;
-        }
-        // printf("PING %d\n", rotate);
-        DEV_Delay_ms(1000);
-        (widget_links[rotate].display)(BlackImage);
-        DEV_Delay_ms(1000);
-        Paint_Clear(RAISIN);
-        rotate = rotate + 1;
-        
-        printf("RATIO: %.6f\n", split_ratio);
 
-        // int pingchar[15];
-        // snprintf(pingchar, 15, "Drawing: %d", counter);
-   	    // Paint_DrawString_EN(8, counter, pingchar, &Font20, WHITE, RAISIN);
         // main_menu(BlackImage);
+        render_frame(padding, calculated_frame_width, calculated_frame_height, &split_ratio, RAISIN, WHITE);
 
+        DEV_Delay_ms(1000);
 
-		// LCD_2IN_Display((uint8_t * )BlackImage);             
+		LCD_2IN_Display((uint8_t * )BlackImage);             
     }
 
     /* Module Exit */

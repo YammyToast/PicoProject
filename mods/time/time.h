@@ -4,7 +4,6 @@
 #include "DEV_Config.h"
 #include "GUI_Paint.h"
 #include "Debug.h"
-#include "ImageData.h"
 #include <stdlib.h> // malloc() free()
 
 #include "LCD_2in.h"
