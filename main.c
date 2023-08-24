@@ -13,7 +13,11 @@
 #include "linker.h"
 #include "linker.c"
 
-const float split_ratio = 0.375;
+#include "config.h"
+#include "config.c"
+
+// const float split_ratio = 0.375;
+system_variables sys_vars;
 
 int main() {
     //LCD_SetBacklight(1023);
@@ -24,17 +28,14 @@ int main() {
         exit(0);
     }
 
-    initialize_settings(Imagesize, BlackImage);
+    // initialize_settings(Imagesize, BlackImage);
     
-    // (widget_links[0].display)(BlackImage);
-    // DEV_Delay_ms(2000);
-    // Paint_Clear(RAISIN);
-    // DEV_Delay_ms(2000);
-    // (widget_links[1].display)(BlackImage);
-    // DEV_Delay_ms(2000);
-    // Paint_Clear(RAISIN);
-    // DEV_Delay_ms(2000);
+    // sys_vars = get_system_variables();
 
+    printf("var: %d\n", sys_vars.widget_frame_height);
+
+
+    // opening_screen(sys_vars.black_image);
     opening_screen(BlackImage);
 
     Paint_Clear(RAISIN);
@@ -49,11 +50,11 @@ int main() {
     while(1){
 
         // main_menu(BlackImage);
-        render_frame(padding, calculated_frame_width, calculated_frame_height, &split_ratio, RAISIN, WHITE);
+        // render_frame(padding, calculated_frame_width, calculated_frame_height, &split_ratio, RAISIN, WHITE);
 
-        DEV_Delay_ms(1000);
+        // DEV_Delay_ms(1000);
 
-		LCD_2IN_Display((uint8_t * )BlackImage);             
+		// LCD_2IN_Display((uint8_t * )BlackImage);             
     }
 
     /* Module Exit */
