@@ -22,10 +22,7 @@
     // int dialogue_frame_height;
     // int dialogue_frame_width;
 
-system_variables get_system_variables() {
-    UWORD* black_memory;
-    UDOUBLE image_size = LCD_2IN_HEIGHT*LCD_2IN_WIDTH*2;
-    apply_for_black_memory(black_memory, image_size);
+system_variables get_system_variables(UWORD* _black_image, UDOUBLE _image_size) {
 
     int padding = 8;
     float dialogue_split_ratio = 0.375;
@@ -37,8 +34,8 @@ system_variables get_system_variables() {
 
     system_variables vars = {
         .widget_links = widget_links,
-        .image_size = image_size,
-        .black_image = black_memory,
+        .image_size = _image_size,
+        .black_image = _black_image,
         .padding = padding,
         .dialogue_split_ratio = dialogue_split_ratio,
         .carousel_split_ratio = carousel_split_ratio,
@@ -50,13 +47,8 @@ system_variables get_system_variables() {
     return vars;
 }
 
-void apply_for_black_memory(UWORD* black_memory, UDOUBLE image_size) {
-    if((black_memory = (UWORD *)malloc(image_size)) == NULL) {
-        printf("Failed to apply for black memory...\r\n");
-        exit(0);
-    }
-
-
+void destruct_system_variables(system_variables sys_vars) {
+    printf("TODO!");
 }
 
 

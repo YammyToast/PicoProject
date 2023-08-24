@@ -35,8 +35,7 @@ typedef struct
 
 } system_variables;  
 
-system_variables get_system_variables();
-
-void apply_for_black_memory(UWORD*, UDOUBLE);
+system_variables get_system_variables(UWORD*, UDOUBLE);
+void destruct_system_variables(system_variables sys_vars);
 
 #endif

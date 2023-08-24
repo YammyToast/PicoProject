@@ -16,27 +16,29 @@
 #include "config.h"
 #include "config.c"
 
-// const float split_ratio = 0.375;
+const float split_ratio = 0.375;
 system_variables sys_vars;
 
 int main() {
-    //LCD_SetBacklight(1023);
-    UDOUBLE Imagesize = LCD_2IN_HEIGHT*LCD_2IN_WIDTH*2;
-    UWORD *BlackImage;
-    if((BlackImage = (UWORD *)malloc(Imagesize)) == NULL) {
+    // LCD_SetBacklight(1023);
+    UDOUBLE image_size = LCD_2IN_HEIGHT*LCD_2IN_WIDTH*2;
+    UWORD *black_image;
+    if((black_image = (UWORD *)malloc(image_size)) == NULL) {
         printf("Failed to apply for black memory...\r\n");
         exit(0);
     }
 
-    // initialize_settings(Imagesize, BlackImage);
-    
-    // sys_vars = get_system_variables();
+    sys_vars = get_system_variables(black_image, image_size);
+    // printf("var: %d\n", sys_vars.widget_frame_height);
 
-    printf("var: %d\n", sys_vars.widget_frame_height);
+    initialize_settings(sys_vars.black_image, sys_vars.image_size );
+    // initialize_settings(sys_vars.image_size, sys_vars.black_image);
+    
+
 
 
     // opening_screen(sys_vars.black_image);
-    opening_screen(BlackImage);
+    opening_screen(sys_vars.black_image);
 
     Paint_Clear(RAISIN);
 
@@ -58,8 +60,8 @@ int main() {
     }
 
     /* Module Exit */
-    free(BlackImage);
-    BlackImage = NULL;
+    free(sys_vars.black_image);
+    sys_vars.black_image = NULL;
     
     // free(widget_func_ptrs);
     DEV_Module_Exit();
