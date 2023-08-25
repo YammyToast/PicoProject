@@ -27,6 +27,6 @@ void LCD_DrawCircle(UWORD x_center, UWORD y_center, UWORD radius, UWORD color, D
 
 //Display string
 void LCD_DrawChar(UWORD x, UWORD y, const char ascii_char, sFONT* font, UWORD color_foreground, UWORD color_background);
-void LCD_DrawString_EN(UWORD x, UWORD y, const char * text, sFONT* font, UWORD color_foreground, UWORD color_background);
+void LCD_DrawString(UWORD x, UWORD y, const char * text, sFONT* font, UWORD color_foreground, UWORD color_background);
 
 #endif
