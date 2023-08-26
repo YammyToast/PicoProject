@@ -207,9 +207,9 @@ def verify_widget_contents(_widget_data: list, _directory: str):
 # ================================================================================================================
 # ================================================================================================================
 
-def make_output_directory(_clear_generated: bool):
+def make_output_directory(_clear_generated: bool, _directory_path: str = "/generated"):
     try:
-        directory_path = "/generated"
+        directory_path = _directory_path
         directory_exists = Path(f"{Path.cwd()}{directory_path}").is_dir()
 
         if _clear_generated == True and directory_exists:
@@ -240,29 +240,19 @@ def compile_linker_widget_data(_widget_data: list, _origin_directory: str, _targ
     data = []
     for widget in _widget_data:
         target_location = os.path.join(_target_directory + "/" + widget.get("displayName"))
+        squashed_display_name = widget.get("displayName").replace(" " , "_")
         data.append(
             LinkerWidget(
                 target_location,
-                widget.get("displayName"),
+                squashed_display_name,
                 os.path.join(_origin_directory + widget.get("headerPath")),
                 os.path.join(_origin_directory + widget.get("mainPath")),
                 os.path.join(_origin_directory + widget.get("scripts")),
 
-                os.path.join(widget.get("displayName") + "/" + extract_file_name(widget.get("headerPath"))),
-                os.path.join(widget.get("displayName") + "/" + extract_file_name(widget.get("mainPath"))),
-                os.path.join(widget.get("displayName") + "/" + extract_file_name(widget.get("scripts"))),
-                # os.path.join(target_location + "/" + extract_file_name(widget.get("headerPath"))),
-                # os.path.join(target_location + "/" + extract_file_name(widget.get("mainPath"))),
-                # os.path.join(target_location + "/" + extract_file_name(widget.get("scripts"))),
-                # os.path.join(_target_directory + "/" + 
-                # widget.get("displayName") + "/" +
-                # extract_file_name(widget.get("headerPath"))),
-                # os.path.join(_target_directory + "/" +
-                # widget.get("displayName") + "/" +
-                # extract_file_name(widget.get("mainPath"))),
-                # os.path.join(_target_directory + "/" +
-                # widget.get("displayName") + "/" +
-                # extract_file_name(widget.get("scripts")))
+                os.path.join(squashed_display_name + "/" + extract_file_name(widget.get("headerPath"))),
+                os.path.join(squashed_display_name + "/" + extract_file_name(widget.get("mainPath"))),
+                os.path.join(squashed_display_name + "/" + extract_file_name(widget.get("scripts"))),
+
 
             )
         )
