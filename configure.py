@@ -8,6 +8,7 @@ import shutil
 from dataclasses import dataclass
 import time
 from csnake import CodeWriter, Variable, FormattedLiteral, Function, FuncPtr, Struct
+from mdutils.mdutils import MdUtils
 
 """
     Attribute Name | Data Type | isFile?
@@ -16,7 +17,12 @@ CONFIG_WIDGET_SCHEMA = [
     ("displayName", str, False),
     ("headerPath", str, True),
     ("mainPath", str, True),
-    ("scripts", str, False),
+    ("bindings", str, False),
+]
+
+CONFIG_BINDONLY_SCHEMA = [
+    ("bindings", str, True)
+
 ]
 
 """
@@ -42,10 +48,8 @@ class LinkerWidget:
     display_name: str
     origin_header_file: str
     origin_main_file: str
-    origin_script_file: str
     target_header_file: str
     target_main_file: str
-    target_script_file: str 
 
 BLACK_IMG_PTR = Variable("black_image", "UWORD*")
 
@@ -113,7 +117,7 @@ def verify_config_part(_part: dict, _schema: list, _directory: str) -> list[tupl
 
 
 
-def load_config_file(_config_file_path: str, _directory: str) -> dict:
+def load_config_file(_config_file_path: str, _directory: str, _schema = CONFIG_WIDGET_SCHEMA) -> dict:
     try:
         if not verify_file_path(_config_file_path):
             raise InvalidFilePath(_config_file_path)
@@ -127,7 +131,7 @@ def load_config_file(_config_file_path: str, _directory: str) -> dict:
 
         print_log(f"Found Attribute \'widgets\'")
         for widget in parsed_data.get("widgets"):
-            if len(x:= verify_config_part(widget, CONFIG_WIDGET_SCHEMA, _directory)) != 0:
+            if len(x:= verify_config_part(widget, _schema, _directory)) != 0:
                 raise MissingAttribute(x)
         return parsed_data
 
@@ -247,11 +251,9 @@ def compile_linker_widget_data(_widget_data: list, _origin_directory: str, _targ
                 squashed_display_name,
                 os.path.join(_origin_directory + widget.get("headerPath")),
                 os.path.join(_origin_directory + widget.get("mainPath")),
-                os.path.join(_origin_directory + widget.get("scripts")),
 
                 os.path.join(squashed_display_name + "/" + extract_file_name(widget.get("headerPath"))),
                 os.path.join(squashed_display_name + "/" + extract_file_name(widget.get("mainPath"))),
-                os.path.join(squashed_display_name + "/" + extract_file_name(widget.get("scripts"))),
 
 
             )
@@ -357,6 +359,21 @@ def write_linker_file_main(_widget_data: list[LinkerWidget], _target_directory: 
     with open(os.path.join(_target_directory + "/" + "linker.c"), 'w') as main_file:
         main_file.write(str(cwr))
 
+# ================================================================================================================
+# ================================================================================================================
+
+def write_markdown_file(_target_directory: str):
+    file_path = os.path.join(_target_directory + "/" + "Bindings")
+    mdFile = MdUtils(file_name=file_path,title='Bindings Preview')
+    mdFile.create_md_file()
+
+
+def generate_preview_bindings(_config_file_path: str, _target_directory: str = ".", _origin_directory: str="./mods"):
+    json_config_data = load_config_file(_config_file_path, _origin_directory, CONFIG_BINDONLY_SCHEMA)
+    widget_data = json_config_data.get("widgets")
+    print(widget_data)
+    write_markdown_file(_target_directory)
+
 
 # ================================================================================================================
 # ================================================================================================================
@@ -392,7 +409,11 @@ if __name__ == '__main__':
             print("No value provided for \'Config-File-Path\' argument \'-c\'.")
             sys.exit(0)
         argv_config_file = sys.argv[argv_index + 1];
-    
+
+    if '-p' in sys.argv:
+        generate_preview_bindings(argv_config_file)
+        sys.exit(0)
+
     if '-nc' in sys.argv:
         argv_clear_generated = False        
 

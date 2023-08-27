@@ -4,14 +4,19 @@
             "displayName": "Time",
             "headerPath": "/time/time.h",
             "mainPath": "/time/time.c",
-            "scripts": "."
+            "bindings": "/time/bindings.h"
         },
         {
             "displayName": "Schedule",
             "headerPath": "/schedule/time.h",
             "mainPath": "/schedule/time.c",
-            "scripts": "."
+            "bindings": "/schedule/bindings.h"
         }
-    ]
+    ],
+    "personality": {
+        "displayName": "August",
+        "scriptBindings": "/august/bindings.c"
+
+    }
 
 }
