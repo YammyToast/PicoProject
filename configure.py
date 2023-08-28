@@ -378,7 +378,17 @@ def write_linker_file_main(_widget_data: list[LinkerWidget], _target_directory: 
 # ================================================================================================================
 # ================================================================================================================
 
+def try_capture_comment(_file_data: str, _comment_index_end: int):
+    lines = []
+    index = _comment_index_end
+    while (re.search(r"\/\*", _file_data[index]) == None) and index > 0:
+        lines.extend([_file_data[index].strip()])
+        index -= 1
+    lines.extend([_file_data[index].strip()])
+    return lines
 
+def compile_comment_vars(_comment_data: list[str]):
+    print("COMPILE VARS")
 
 def compile_file_bindings(_file_data: str) -> list[BindingFunction]:
     try:
@@ -390,10 +400,19 @@ def compile_file_bindings(_file_data: str) -> list[BindingFunction]:
             if len(split_function_def) < 3:
                 raise SyntaxError(line)
 
+
+
             binding_params = []
             params = (
                 ';'.join(split_function_def[2:-1])
             ).split(",")
+
+            index = _file_data.index(line)
+            comment_index_end = index - 1 if index > 0 else index
+
+            comment_text = "N/A"
+            if (re.search(r"\*\/", _file_data[comment_index_end]).span()[1]) != None:
+                comment_text = try_capture_comment(_file_data, comment_index_end)
             
             for param in params:
                 parsed_param = param.replace(";", " ").strip().split(" ")
@@ -458,19 +477,20 @@ def write_markdown_file(_binding_data: list[BindingFileGrouping], _target_direct
     md_file = MdUtils(file_name=file_path)
     md_file.new_header(level=1, title="Binding Preview Tables")
     for file_grouping in _binding_data:
+        header_text = f"{file_grouping.file_display_name}: {file_grouping.file_path}"
         # Table of contents attribute is required for a level 2 header
-        md_file.new_header(level=2, title=file_grouping.file_display_name, add_table_of_contents="n")
+        md_file.new_header(level=2, title=header_text, add_table_of_contents="n")
 
         arranged_bindings = ["Name", "Parameters", "Return Type", "Raw Function"]
         for func in file_grouping.functions:
             param_table = build_param_table(func.params)
-            print(param_table)
             arranged_bindings.extend([
                 func.name,
                 param_table,
                 func.return_type_name,
                 func.raw_function_def
             ])
+
         md_file.new_table(
             # Method to get number of attributes in a dataclass
             columns=4,
@@ -478,6 +498,7 @@ def write_markdown_file(_binding_data: list[BindingFileGrouping], _target_direct
             text=arranged_bindings,
             text_align="center"
         )
+
     md_file.new_paragraph(text="Generated using mdutils", bold_italics_code='i')
     md_file.create_md_file()
 

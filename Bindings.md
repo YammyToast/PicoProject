@@ -4,13 +4,13 @@
 
 # Binding Preview Tables
 
-## Time
+## Time: ./mods/time/bindings.h
 
 |Name|Parameters|Return Type|Raw Function|
 | :---: | :---: | :---: | :---: |
 |HOUR_TRIGGER|<table><tr><th>Name</th><th>Type</th><th>Description</th></tr><tr><td>_MILITIME</td><td>int</td><td>TODO</td></tr></table>|void|void HOUR_TRIGGER(int _MILITIME);|
 
-## Schedule
+## Schedule: ./mods/schedule/bindings.h
 
 |Name|Parameters|Return Type|Raw Function|
 | :---: | :---: | :---: | :---: |
