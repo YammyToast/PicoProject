@@ -441,6 +441,18 @@ def compile_bindings(_widget_data: list, _origin_directory: str) -> list[Binding
         )
     return binding_groups
 
+def build_param_table(_param_list: list[BindingFunctionParam]) -> str:
+    table_str = "<table>"
+    table_str += "<tr><th>Name</th><th>Type</th><th>Description</th></tr>"
+    for param in _param_list:
+        table_str += "<tr>"
+        table_str += f"<td>{param.name}</td>"
+        table_str += f"<td>{param.type_name}</td>"
+        table_str += f"<td>{param.description}</td>"
+        table_str += "</tr>"
+    table_str += "</table>"
+    return table_str
+
 def write_markdown_file(_binding_data: list[BindingFileGrouping], _target_directory: str):
     file_path = os.path.join(_target_directory + "/" + "Bindings")
     md_file = MdUtils(file_name=file_path)
@@ -451,9 +463,11 @@ def write_markdown_file(_binding_data: list[BindingFileGrouping], _target_direct
 
         arranged_bindings = ["Name", "Parameters", "Return Type", "Raw Function"]
         for func in file_grouping.functions:
+            param_table = build_param_table(func.params)
+            print(param_table)
             arranged_bindings.extend([
                 func.name,
-                func.params,
+                param_table,
                 func.return_type_name,
                 func.raw_function_def
             ])

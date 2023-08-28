@@ -8,3 +8,5 @@ linker.h
 
 __pycache__
 .pytest_cache
+
+./*.md
