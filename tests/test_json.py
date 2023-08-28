@@ -14,16 +14,16 @@ from configure import MissingAttributeType, MissingAttribute
 
 EXPECTED_FN_NAMES_ONE = [
         r"^(.+[ ]+Test_One_display\(.*\)[ ]*[;{]{1})$",
-        r".+[ ]+Test_One_thumbnail\(.*\)[ ]*[;{]{1}",
-        r".+[ ]+Test_One_settings\(.*\)[ ]*[;{]{1}",
-        r".+[ ]+Test_One_update\(.*\)[ ]*[;{]{1}"
+        r"^(.+[ ]+Test_One_thumbnail\(.*\)[ ]*[;{]{1})$",
+        r"^(.+[ ]+Test_One_settings\(.*\)[ ]*[;{]{1})$",
+        r"^(.+[ ]+Test_One_update\(.*\)[ ]*[;{]{1})$"
 ]
 
 EXPECTED_FN_NAMES_TWO = [
-        r".+[ ]+Test_Two_display\(.*\)[ ]*[;{]{1}",
-        r".+[ ]+Test_Two_thumbnail\(.*\)[ ]*[;{]{1}",
-        r".+[ ]+Test_Two_settings\(.*\)[ ]*[;{]{1}",
-        r".+[ ]+Test_Two_update\(.*\)[ ]*[;{]{1}"
+        r"^(.+[ ]+Test_Two_display\(.*\)[ ]*[;{]{1})$",
+        r"^(.+[ ]+Test_Two_thumbnail\(.*\)[ ]*[;{]{1})$",
+        r"^(.+[ ]+Test_Two_settings\(.*\)[ ]*[;{]{1})$",
+        r"^(.+[ ]+Test_Two_update\(.*\)[ ]*[;{]{1})$"
 ]
 
 

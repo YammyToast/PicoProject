@@ -14,15 +14,15 @@ from mdutils.mdutils import MdUtils
     Attribute Name | Data Type | isFile?
 """
 CONFIG_WIDGET_SCHEMA = [
-    ("displayName", str, False),
+    ("headerPath", str, True),
     ("headerPath", str, True),
     ("mainPath", str, True),
     ("bindings", str, False),
 ]
 
 CONFIG_BINDONLY_SCHEMA = [
+    ("displayName", str, False),
     ("bindings", str, True)
-
 ]
 
 """
@@ -42,6 +42,8 @@ FUNCTION_WIDGET_SCHEMA_MAIN = [
     ("update", r"^((voidupdate\(UWORD\*.+\)){1}[\{\} ]*)$")
 ]
 
+BINDING_FUNCTION_PATTERN = r"(.+[ ]+[\w]+\(.*\)[ ]*[;{]{1})$"
+
 @dataclass
 class LinkerWidget:
     target_location: str
@@ -51,9 +53,27 @@ class LinkerWidget:
     target_header_file: str
     target_main_file: str
 
+@dataclass
+class BindingFunctionParam:
+    name: str
+    type_name: str
+    description: str
+
+@dataclass
+class BindingFunction:
+    name: str
+    params: list[BindingFunctionParam]
+    return_type_name: str
+    raw_function_def: str
+
+@dataclass
+class BindingFileGrouping:
+    file_display_name: str
+    file_path: str
+    functions: list[BindingFunction]
+
+
 BLACK_IMG_PTR = Variable("black_image", "UWORD*")
-
-
 FUNC_PTR_TYPE = FuncPtr("void", arguments=([BLACK_IMG_PTR]))
 RETURN_TYPE_STRUCT = Struct("widget_link", typedef=True)
 RETURN_TYPE_STRUCT.add_variable(("display", "API_FUNC"))
@@ -238,8 +258,6 @@ def make_output_directory(_clear_generated: bool, _directory_path: str = "/gener
     except Exception as e:
         raise
 
-
-
 def compile_linker_widget_data(_widget_data: list, _origin_directory: str, _target_directory: str) -> list[LinkerWidget]:
     data = []
     for widget in _widget_data:
@@ -254,8 +272,6 @@ def compile_linker_widget_data(_widget_data: list, _origin_directory: str, _targ
 
                 os.path.join(squashed_display_name + "/" + extract_file_name(widget.get("headerPath"))),
                 os.path.join(squashed_display_name + "/" + extract_file_name(widget.get("mainPath"))),
-
-
             )
         )
     return data
@@ -362,17 +378,103 @@ def write_linker_file_main(_widget_data: list[LinkerWidget], _target_directory: 
 # ================================================================================================================
 # ================================================================================================================
 
-def write_markdown_file(_target_directory: str):
-    file_path = os.path.join(_target_directory + "/" + "Bindings")
-    mdFile = MdUtils(file_name=file_path,title='Bindings Preview')
-    mdFile.create_md_file()
 
+
+def compile_file_bindings(_file_data: str) -> list[BindingFunction]:
+    try:
+        funcs = []
+        for line in _file_data:
+            if re.search(BINDING_FUNCTION_PATTERN, line) == None:
+                continue;
+            split_function_def = re.split("\(|\)|\s",line)
+            if len(split_function_def) < 3:
+                raise SyntaxError(line)
+
+            binding_params = []
+            params = (
+                ';'.join(split_function_def[2:-1])
+            ).split(",")
+            
+            for param in params:
+                parsed_param = param.replace(";", " ").strip().split(" ")
+                binding_params.append(
+                    BindingFunctionParam(
+                        parsed_param[1],
+                        parsed_param[0],
+                        "TODO"
+                    )
+                )
+
+            funcs.append(
+                BindingFunction(
+                # CHANGE THIS TO COMMENT NAME
+                name=split_function_def[1],
+                params=binding_params,
+                return_type_name=split_function_def[0],
+                raw_function_def=line
+                )
+            )
+        return funcs
+    except SyntaxError as e:
+        e.add_note(f"Invalid function prototype: {e.args}")
+        raise
+
+def compile_bindings(_widget_data: list, _origin_directory: str) -> list[BindingFileGrouping]:
+    binding_groups = []
+    for widget in _widget_data:
+        path = os.path.join(_origin_directory + widget.get("bindings"))
+        file_data = list(
+                filter(
+                    None, 
+                    read_file_raw(
+                        path
+                    ).split("\n")
+                )
+        )
+        file_bindings = compile_file_bindings(file_data)
+        binding_groups.append(
+            BindingFileGrouping(
+                file_display_name=widget.get("displayName"),
+                file_path=path,
+                functions=file_bindings    
+            )
+        )
+    return binding_groups
+
+def write_markdown_file(_binding_data: list[BindingFileGrouping], _target_directory: str):
+    file_path = os.path.join(_target_directory + "/" + "Bindings")
+    md_file = MdUtils(file_name=file_path)
+    md_file.new_header(level=1, title="Binding Preview Tables")
+    for file_grouping in _binding_data:
+        # Table of contents attribute is required for a level 2 header
+        md_file.new_header(level=2, title=file_grouping.file_display_name, add_table_of_contents="n")
+
+        arranged_bindings = ["Name", "Parameters", "Return Type", "Raw Function"]
+        for func in file_grouping.functions:
+            arranged_bindings.extend([
+                func.name,
+                func.params,
+                func.return_type_name,
+                func.raw_function_def
+            ])
+        md_file.new_table(
+            # Method to get number of attributes in a dataclass
+            columns=4,
+            rows=len(file_grouping.functions) + 1,
+            text=arranged_bindings,
+            text_align="center"
+        )
+    md_file.new_paragraph(text="Generated using mdutils", bold_italics_code='i')
+    md_file.create_md_file()
 
 def generate_preview_bindings(_config_file_path: str, _target_directory: str = ".", _origin_directory: str="./mods"):
     json_config_data = load_config_file(_config_file_path, _origin_directory, CONFIG_BINDONLY_SCHEMA)
     widget_data = json_config_data.get("widgets")
-    print(widget_data)
-    write_markdown_file(_target_directory)
+    print("\n")
+    print_log(f"Compiling Bindings from Widgets...")
+    
+    binding_data = compile_bindings(widget_data, _origin_directory)
+    write_markdown_file(binding_data, _target_directory)
 
 
 # ================================================================================================================
