@@ -6,7 +6,6 @@
 #include "DEV_Config.h"
 #include "GUI_Paint.h"
 #include "Debug.h"
-#include "ImageData.h"
 #include <stdlib.h> // malloc() free()
 
 #include "LCD_2in.h"
@@ -18,6 +17,14 @@ int initialize_settings(UDOUBLE, UWORD*);
 int opening_screen(UWORD*);
 
 int main_menu(UWORD*);
+
+void render_frame(
+    int,
+    int,
+    int,
+    const float*,
+    UWORD,
+    UWORD);
 
 enum window_state;
 

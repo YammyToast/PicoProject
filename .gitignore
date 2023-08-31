@@ -1,3 +1,7 @@
 build
 lib
 .vscode
+generated
+mods
+linker.c
+linker.h
