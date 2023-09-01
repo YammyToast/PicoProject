@@ -413,7 +413,8 @@ def compile_file_bindings(_file_data: str) -> list[BindingFunction]:
             comment_text = "N/A"
             if (re.search(r"\*\/", _file_data[comment_index_end]).span()[1]) != None:
                 comment_text = try_capture_comment(_file_data, comment_index_end)
-            
+                
+            print(comment_text)            
             for param in params:
                 parsed_param = param.replace(";", " ").strip().split(" ")
                 binding_params.append(
