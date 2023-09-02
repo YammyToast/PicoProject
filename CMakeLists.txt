@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.12)
 
-include(/home/yames/Documents/pico-sdk/external/pico_sdk_import.cmake)
+# set(PICO_SDK_PATH ~/Code/pico-sdk)
+include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+# include(/home/yames/Documents/pico-sdk/external/pico_sdk_import.cmake)
 #include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 #include(../../pico-sdk/external/pico_sdk_import.cmake)
 

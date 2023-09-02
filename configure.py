@@ -43,6 +43,7 @@ FUNCTION_WIDGET_SCHEMA_MAIN = [
 ]
 
 BINDING_FUNCTION_PATTERN = r"(.+[ ]+[\w]+\(.*\)[ ]*[;{]{1})$"
+BINDING_PARAM_DESCRIPTION_PATTERN = r"(.[\s])*\*.*[\s]*(@param) ([a-zA-Z*])+ ([\w])+:((.|\n)(?!(@param)|(@name))(?!\*\/))+"
 
 @dataclass
 class LinkerWidget:
@@ -65,6 +66,7 @@ class BindingFunction:
     params: list[BindingFunctionParam]
     return_type_name: str
     raw_function_def: str
+    description: str
 
 @dataclass
 class BindingFileGrouping:
@@ -387,8 +389,27 @@ def try_capture_comment(_file_data: str, _comment_index_end: int):
     lines.extend([_file_data[index].strip()])
     return lines
 
-def compile_comment_vars(_comment_data: list[str]):
-    print("COMPILE VARS")
+def match_comment_vars(_comment_data: list[str], _parameter: str):
+    for index in range(len(_comment_data)):
+        accumulative_text = "\n".join(_comment_data[index:])
+        if (x:= re.search(BINDING_PARAM_DESCRIPTION_PATTERN, accumulative_text)) == None:
+            continue
+        text_param_name = (
+                        accumulative_text
+                            [x.span()[0]:x.span()[1]]
+                            .split(":")[0]
+                            .strip()
+                        ).split(" ")[-1]
+        if(text_param_name == _parameter):
+            # Joining on ":" is probably not the best solution to fixing extra ":" in text that are removed in the description extraction.
+            # it do work doe
+            # this is so dumb
+            return (":".join(accumulative_text
+                            [x.span()[0]:x.span()[1]]
+                            .split(":")[1:])
+                    ).strip("* \n").replace("*", "").replace("\n", "")
+
+    return "N/A"
 
 def compile_file_bindings(_file_data: str) -> list[BindingFunction]:
     try:
@@ -399,8 +420,6 @@ def compile_file_bindings(_file_data: str) -> list[BindingFunction]:
             split_function_def = re.split("\(|\)|\s",line)
             if len(split_function_def) < 3:
                 raise SyntaxError(line)
-
-
 
             binding_params = []
             params = (
@@ -414,14 +433,15 @@ def compile_file_bindings(_file_data: str) -> list[BindingFunction]:
             if (re.search(r"\*\/", _file_data[comment_index_end]).span()[1]) != None:
                 comment_text = try_capture_comment(_file_data, comment_index_end)
                 
-            print(comment_text)            
             for param in params:
                 parsed_param = param.replace(";", " ").strip().split(" ")
+                param_description = comment_text if comment_text == "N/A" else match_comment_vars(comment_text, parsed_param[1])
+                print(f"||| {param_description} |||")
                 binding_params.append(
                     BindingFunctionParam(
                         parsed_param[1],
                         parsed_param[0],
-                        "TODO"
+                        param_description
                     )
                 )
 
@@ -431,7 +451,8 @@ def compile_file_bindings(_file_data: str) -> list[BindingFunction]:
                 name=split_function_def[1],
                 params=binding_params,
                 return_type_name=split_function_def[0],
-                raw_function_def=line
+                raw_function_def=line,
+                description="TODO"
                 )
             )
         return funcs
