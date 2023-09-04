@@ -436,7 +436,6 @@ def compile_file_bindings(_file_data: str) -> list[BindingFunction]:
             for param in params:
                 parsed_param = param.replace(";", " ").strip().split(" ")
                 param_description = comment_text if comment_text == "N/A" else match_comment_vars(comment_text, parsed_param[1])
-                print(f"||| {param_description} |||")
                 binding_params.append(
                     BindingFunctionParam(
                         parsed_param[1],
@@ -464,6 +463,7 @@ def compile_bindings(_widget_data: list, _origin_directory: str) -> list[Binding
     binding_groups = []
     for widget in _widget_data:
         path = os.path.join(_origin_directory + widget.get("bindings"))
+        print_log(f"Reading Bindings from: {path}")
         file_data = list(
                 filter(
                     None, 
@@ -496,10 +496,12 @@ def build_param_table(_param_list: list[BindingFunctionParam]) -> str:
 
 def write_markdown_file(_binding_data: list[BindingFileGrouping], _target_directory: str):
     file_path = os.path.join(_target_directory + "/" + "Bindings")
+    print_log(f"Writing binding file: \'{file_path}.md\'")
     md_file = MdUtils(file_name=file_path)
     md_file.new_header(level=1, title="Binding Preview Tables")
     for file_grouping in _binding_data:
         header_text = f"{file_grouping.file_display_name}: {file_grouping.file_path}"
+        print_log(f"Writing table: \'{header_text}\'")
         # Table of contents attribute is required for a level 2 header
         md_file.new_header(level=2, title=header_text, add_table_of_contents="n")
 
@@ -514,7 +516,6 @@ def write_markdown_file(_binding_data: list[BindingFileGrouping], _target_direct
             ])
 
         md_file.new_table(
-            # Method to get number of attributes in a dataclass
             columns=4,
             rows=len(file_grouping.functions) + 1,
             text=arranged_bindings,
@@ -523,6 +524,7 @@ def write_markdown_file(_binding_data: list[BindingFileGrouping], _target_direct
 
     md_file.new_paragraph(text="Generated using mdutils", bold_italics_code='i')
     md_file.create_md_file()
+    print_log(f"Done writing file: \'{file_path}.md\'")
 
 def generate_preview_bindings(_config_file_path: str, _target_directory: str = ".", _origin_directory: str="./mods"):
     json_config_data = load_config_file(_config_file_path, _origin_directory, CONFIG_BINDONLY_SCHEMA)
@@ -567,10 +569,13 @@ if __name__ == '__main__':
         if argv_index == (len(sys.argv) - 1):
             print("No value provided for \'Config-File-Path\' argument \'-c\'.")
             sys.exit(0)
+            
         argv_config_file = sys.argv[argv_index + 1];
 
     if '-p' in sys.argv:
         generate_preview_bindings(argv_config_file)
+        end_ts = time.time()
+        print("\nFinished. Completed in {:2f} seconds.".format(end_ts - start_ts))
         sys.exit(0)
 
     if '-nc' in sys.argv:
