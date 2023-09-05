@@ -8,8 +8,8 @@
         },
         {
             "displayName": "Schedule",
-            "headerPath": "/schedule/time.h",
-            "mainPath": "/schedule/time.c",
+            "headerPath": "/schedule/schedule.h",
+            "mainPath": "/schedule/schedule.c",
             "bindings": "/schedule/bindings.h"
         }
     ],

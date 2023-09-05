@@ -22,7 +22,8 @@ void render_frame(
     int,
     const float*,
     UWORD,
-    UWORD);
+    UWORD
+);
 
 enum window_state;
 

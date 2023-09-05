@@ -4,17 +4,22 @@
 #ifndef CORE_PAINT_API_H
 #define CORE_PAINT_API_H
 
-enum api_tag {
-    CLEAR,
-    CLAERWINDOWS,
-    DRAWPOINT,
-    DRAWLINE,
-    DRAWRECTANGLE,
-    DRAWCIRCLE,
-    DRAWCHAR,
-    DRAWSTRING
-}
+// enum api_tag {
+//     CLEAR,
+//     CLEARWINDOWS,
+//     DRAWPOINT,
+//     DRAWLINE,
+//     DRAWRECTANGLE,
+//     DRAWCIRCLE,
+//     DRAWCHAR,
+//     DRAWSTRING
+// }
 
+typedef struct {
+    char* ref;
+    int width;
+    int height;
+} image_link;
 
 void LCD_Clear(UWORD color);
 void LCD_ClearWindows(UWORD x1, UWORD y1, UWORD x2, UWORD y2, UWORD color);

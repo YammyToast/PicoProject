@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import time
 from csnake import CodeWriter, Variable, FormattedLiteral, Function, FuncPtr, Struct
 from mdutils.mdutils import MdUtils
+import functools
 
 """
     Attribute Name | Data Type | isFile?
@@ -45,6 +46,12 @@ FUNCTION_WIDGET_SCHEMA_MAIN = [
 BINDING_FUNCTION_PATTERN = r"(.+[ ]+[\w]+\(.*\)[ ]*[;{]{1})$"
 BINDING_PARAM_DESCRIPTION_PATTERN = r"(.[\s])*\*.*[\s]*(@param) ([a-zA-Z*])+ ([\w])+:((.|\n)(?!(@param)|(@name))(?!\*\/))+"
 
+MAP_INCLUDE_PATTERN = r"\s*(#include){1}([\s\t ])+(\"[\w]+(\.h|\.c)\"){1}[\s\n ]*"
+
+class FileTypes(Enum):
+    HEADER = 0
+    MAIN = 1
+
 @dataclass
 class LinkerWidget:
     target_location: str
@@ -74,6 +81,24 @@ class BindingFileGrouping:
     file_path: str
     functions: list[BindingFunction]
 
+@dataclass
+class MapItem:
+    file_type: FileTypes
+    path: str
+    searched: bool
+
+@dataclass
+class MapGrouping:
+    rel_widget: LinkerWidget
+    root_header_path: str
+    root_main_path: str
+    internal_map: list[MapItem]
+
+@dataclass
+class ImageLink:
+    ref: str
+    height: int
+    width: int
 
 BLACK_IMG_PTR = Variable("black_image", "UWORD*")
 FUNC_PTR_TYPE = FuncPtr("void", arguments=([BLACK_IMG_PTR]))
@@ -83,13 +108,9 @@ RETURN_TYPE_STRUCT.add_variable(("thumbnail", "API_FUNC"))
 RETURN_TYPE_STRUCT.add_variable(("settings", "API_FUNC"))
 RETURN_TYPE_STRUCT.add_variable(("update", "API_FUNC"))
 
-
-
-
 class InvalidFilePath(Exception):
     def __init__(self, _file_path_str: str):
         super().__init__(f"Couldn't find file: \'{_file_path_str}\'")
-
 
 class MissingAttribute(Exception):
     pass
@@ -377,6 +398,68 @@ def write_linker_file_main(_widget_data: list[LinkerWidget], _target_directory: 
     with open(os.path.join(_target_directory + "/" + "linker.c"), 'w') as main_file:
         main_file.write(str(cwr))
 
+
+# ================================================================================================================
+# ================================================================================================================
+
+def compile_widget_include_files(_file_data: list[str], _widget_files: list[str], _directory_path: str) -> list[str]:
+    include_list = []
+    for line in _file_data:
+        if (x := re.search(MAP_INCLUDE_PATTERN, line)) != None:
+            include_list.append(
+                line[x.span()[0]:x.span()[1]].split("#include")[1].strip(" \"")
+            )
+
+    match_list = []
+    for iter in range(len(include_list)):
+        if include_list[iter] in _widget_files:
+            match_list.append(os.path.join(_directory_path, include_list[iter]))
+
+
+    return match_list
+
+def build_widget_file_map(_widget_data: list[LinkerWidget], _allow_include_errors: bool = True):
+    file_map: list[MapGrouping] = {}
+    for widget in _widget_data:
+        widget_directory_files = []
+        # This needs a look at, constant slicing is probably a bad idea.
+        widget_directory_path = "/".join(widget.origin_main_file.split("/")[:3])
+        for (_, _, file_names) in os.walk(widget_directory_path):
+            widget_directory_files.extend(file_names)
+
+        internal_map: list[MapItem] = []
+        internal_map.append(MapItem(file_type=FileTypes.HEADER, path=widget.origin_header_file, searched=False))
+        internal_map.append(MapItem(file_type=FileTypes.MAIN, path=widget.origin_main_file, searched=False))
+
+        index = 0
+        # List of path names, to make 'searched' checking easier and quicker.
+        reduced_path_list = [widget.origin_header_file, widget.origin_main_file]
+
+        while (x:= internal_map[index]).searched == False:
+            index_file_data = read_file_raw(x.path).split("\n")
+            include_list = compile_widget_include_files(index_file_data, widget_directory_files, widget_directory_path)
+
+            for path in include_list:                
+                # Check against reduced_path_list for quicker and easier duplicate checking.    
+                if path not in reduced_path_list:
+                    reduced_path_list.append(path)
+                    extension = path.split(".")[-1]
+                    internal_map.append(MapItem(
+                        file_type=FileTypes.HEADER if extension == "h" else FileTypes.MAIN,
+                        path=path,
+                        searched=False
+                    ))
+
+            x.searched = True
+
+            if (index + 1) > (len(internal_map) - 1):
+                break;
+            index += 1
+
+        file_map.update({widget.display_name:internal_map})
+    return file_map
+
+
 # ================================================================================================================
 # ================================================================================================================
 
@@ -526,6 +609,10 @@ def write_markdown_file(_binding_data: list[BindingFileGrouping], _target_direct
     md_file.create_md_file()
     print_log(f"Done writing file: \'{file_path}.md\'")
 
+
+# ================================================================================================================
+# ================================================================================================================
+
 def generate_preview_bindings(_config_file_path: str, _target_directory: str = ".", _origin_directory: str="./mods"):
     json_config_data = load_config_file(_config_file_path, _origin_directory, CONFIG_BINDONLY_SCHEMA)
     widget_data = json_config_data.get("widgets")
@@ -534,10 +621,6 @@ def generate_preview_bindings(_config_file_path: str, _target_directory: str = "
     
     binding_data = compile_bindings(widget_data, _origin_directory)
     write_markdown_file(binding_data, _target_directory)
-
-
-# ================================================================================================================
-# ================================================================================================================
 
 def main(_config_file_path: str, _clear_generated: bool, _origin_directory: str="./mods"):
     target_directory = "./generated"
@@ -551,8 +634,9 @@ def main(_config_file_path: str, _clear_generated: bool, _origin_directory: str=
     make_output_directory(_clear_generated)
     linker_widget_data = compile_linker_widget_data(json_config_data.get("widgets"), _origin_directory, target_directory)
     make_target_directories(linker_widget_data, target_directory)
-
     translate_target_files(linker_widget_data, target_directory)
+
+    file_map = build_widget_file_map(linker_widget_data)
 
     write_linker_file_header(linker_widget_data, target_directory)
     print_log(f"Generated \'linker.h\'.")

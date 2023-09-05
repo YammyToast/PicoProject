@@ -7,6 +7,9 @@
 #include <stdlib.h> // malloc() free()
 
 #include "LCD_2in.h"
+#include "time.h"
+#include "calc.c"
+
 #ifndef TIME_MAIN
 #define TIME_MAIN
 
