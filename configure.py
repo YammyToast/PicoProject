@@ -48,6 +48,12 @@ BINDING_PARAM_DESCRIPTION_PATTERN = r"(.[\s])*\*.*[\s]*(@param) ([a-zA-Z*])+ ([\
 
 MAP_INCLUDE_PATTERN = r"\s*(#include){1}([\s\t ])+(\"[\w]+(\.h|\.c)\"){1}[\s\n ]*"
 
+TRANSLATE_IMAGE_DEFINITION_PATTERN = r"(image_link){1}([\t\s]+[\w]+[\t\s]*=[\t\s]*){1}({(.|\n)+};)"
+TRANSLATE_IMAGE_REF_PATTERN = r"(.ref){1}([\w\t ]*=[\w\t ]*){1}((?!,).)+"
+TRANSLATE_IMAGE_PATH_PATTERN = r'^"(\.\.)*(\/|(?!\.\.)[a-zA-Z0-9_\-\/\.]+)+(\.[\w]+)"$'
+TRANSLATE_IMAGE_WIDTH_PATTERN = r'(.width){1}([\s\t\n ]*=[\s\t\n ]*){1}([0-9]+){1}([\s\t\n ]*)(?!,}){1}'
+TRANSLATE_IMAGE_HEIGHT_PATTERN = r'(.height){1}([\s\t\n ]*=[\s\t\n ]*){1}([0-9]+){1}([\s\t\n ]*)(?!,}){1}'
+
 class FileTypes(Enum):
     HEADER = 0
     MAIN = 1
@@ -84,7 +90,8 @@ class BindingFileGrouping:
 @dataclass
 class MapItem:
     file_type: FileTypes
-    path: str
+    path_source: str
+    path_stripped: str
     searched: bool
 
 @dataclass
@@ -119,6 +126,30 @@ class MissingAttributeType(Enum):
     MISSING = 0
     TYPE = 1
     NOFILE = 2
+
+class ImageRefErrorType(Enum):
+    NOREF = 0
+    NOHEIGHT = 1
+    NOWIDTH= 2
+    REFISVAR = 3
+    REFINVALID = 4
+    REFNOTFOUND = 5
+
+
+class ImageRefError(Exception):
+    def __init__(self, _message: str, _type: ImageRefErrorType):
+        if _type == ImageRefErrorType.NOREF:
+            super().__init__(f"Image Definition does not contain a '.ref' attribute: \n{_message}.")
+        elif _type == ImageRefErrorType.NOWIDTH:
+            super().__init__(f"Image Definition does not contain a '.width' attribute: \n{_message}.")
+        elif _type == ImageRefErrorType.NOHEIGHT:
+            super().__init__(f"Image Definition does not contain a '.height' attribute: \n{_message}.")
+        elif _type == ImageRefErrorType.REFISVAR:
+            super().__init__(f"'.ref' value is non-constant (variable): \n{_message}")
+        elif _type == ImageRefErrorType.REFINVALID:
+            super().__init__(f"Value given for '.ref' is invalid: \n{_message}")
+        elif _type == ImageRefErrorType.REFNOTFOUND:
+            super().__init__(f"Could not find ref: \n{_message}")
 
 
 def print_log(_message: str):
@@ -281,7 +312,7 @@ def make_output_directory(_clear_generated: bool, _directory_path: str = "/gener
     except Exception as e:
         raise
 
-def compile_linker_widget_data(_widget_data: list, _origin_directory: str, _target_directory: str) -> list[LinkerWidget]:
+def compile_config_widget_files(_widget_data: list, _origin_directory: str, _target_directory: str) -> list[LinkerWidget]:
     data = []
     for widget in _widget_data:
         target_location = os.path.join(_target_directory + "/" + widget.get("displayName"))
@@ -305,7 +336,7 @@ def make_target_directories(_widget_data: list[LinkerWidget], _target_directory:
         Path(path).mkdir(exist_ok=False)
         print_log(f"Created directory: \'{path}\'")
 
-def modify_target_file(_file_data: str, _widget_display_name: str, _schema: list):
+def uniquify_root_file(_file_data: str, _widget_display_name: str, _schema: list):
     split_data = _file_data.split("\n")
     line_num = 0
     for line in split_data:
@@ -321,19 +352,49 @@ def modify_target_file(_file_data: str, _widget_display_name: str, _schema: list
         line_num += 1
     return ('\n'.join(split_data))
 
-def translate_target_files(_widget_data: list[LinkerWidget], _target_directory):
-    for widget in _widget_data:
-        destination = f"{_target_directory}/{widget.display_name}/"
-        origin_header = widget.origin_header_file
-        origin_main = widget.origin_main_file
-        modified_header = modify_target_file(read_file_raw(origin_header), widget.display_name, FUNCTION_WIDGET_SCHEMA_HEADER)
-        modified_main = modify_target_file(read_file_raw(origin_main), widget.display_name, FUNCTION_WIDGET_SCHEMA_MAIN)
 
-        with open(os.path.join(_target_directory + "/" + widget.target_header_file), 'w') as header_file:
-            header_file.write(str(modified_header))   
-        with open(os.path.join(_target_directory + "/" + widget.target_main_file), 'w') as main_file:
-            main_file.write(str(modified_main))            
 
+def replace_image_declarations(_file_data: str) -> str:
+    # print(_file_data)
+    try:
+        while (x := re.search(TRANSLATE_IMAGE_DEFINITION_PATTERN, _file_data)):
+            image_slice = _file_data[x.span()[0]:x.span()[1]].replace("\n", "")
+            if (h := re.search(TRANSLATE_IMAGE_HEIGHT_PATTERN, image_slice)) == None:
+                raise ImageRefError(image_slice, ImageRefErrorType.NOHEIGHT)
+            image_height = image_slice[h.span()[0]:h.span()[1]].replace(" ", "").split("=")[-1]
+
+            if (w := re.search(TRANSLATE_IMAGE_WIDTH_PATTERN, image_slice)) == None:
+                raise ImageRefError(image_slice, ImageRefErrorType.NOWIDTH)
+            image_width = image_slice[w.span()[0]:w.span()[1]].replace(" ", "").split("=")[-1]
+
+
+            if (y := re.search(TRANSLATE_IMAGE_REF_PATTERN, image_slice)) == None:
+                raise ImageRefError(image_slice, ImageRefErrorType.NOREF)
+            ref_slice = image_slice[y.span()[0]:y.span()[1]].replace(" ", "")
+            ref_value = ref_slice.split("=")[1].strip("\"")
+            
+            print(f"H: {image_height}, W: {image_width}, PATH: {ref_value}")
+            break;
+    except ImageRefError as e:
+        print(e)
+        raise
+
+def translate_target_files(_file_map: list[MapGrouping], _target_directory: str):
+    for widget_name, widget_file_map in _file_map.items():
+        
+        for file in widget_file_map.internal_map:
+            file_data = read_file_raw(file.path_source)
+            if file.path_source == widget_file_map.root_header_path:
+                file_data = uniquify_root_file(file_data, widget_name, FUNCTION_WIDGET_SCHEMA_HEADER)
+            if file.path_source == widget_file_map.root_main_path:
+                file_data = uniquify_root_file(file_data, widget_name, FUNCTION_WIDGET_SCHEMA_MAIN)
+            
+            print(file)
+            file_data = replace_image_declarations(file_data)
+
+            target_path = os.path.join(_target_directory, widget_name, file.path_stripped)
+            with open(target_path, 'w') as file_writer:
+                file_writer.write(str(file_data))
 
 # ================================================================================================================
 # ================================================================================================================
@@ -344,7 +405,6 @@ def write_linker_file_header(_widget_data: list[LinkerWidget], _target_directory
     cwr.start_if_def("_LINKER_HEADER_", invert=True)
     cwr.add_define("_LINKER_HEADER_")
 
-    # length_variable = Variable("widget", "int", value=len(_widget_data))
     cwr.add_line(f"typedef {FUNC_PTR_TYPE.get_declaration('API_FUNC')};")
     cwr.add_struct(RETURN_TYPE_STRUCT)
     
@@ -413,7 +473,7 @@ def compile_widget_include_files(_file_data: list[str], _widget_files: list[str]
     match_list = []
     for iter in range(len(include_list)):
         if include_list[iter] in _widget_files:
-            match_list.append(os.path.join(_directory_path, include_list[iter]))
+            match_list.append((include_list[iter], os.path.join(_directory_path, include_list[iter])))
 
 
     return match_list
@@ -428,35 +488,49 @@ def build_widget_file_map(_widget_data: list[LinkerWidget], _allow_include_error
             widget_directory_files.extend(file_names)
 
         internal_map: list[MapItem] = []
-        internal_map.append(MapItem(file_type=FileTypes.HEADER, path=widget.origin_header_file, searched=False))
-        internal_map.append(MapItem(file_type=FileTypes.MAIN, path=widget.origin_main_file, searched=False))
+        internal_map.append(MapItem(
+            file_type=FileTypes.HEADER,
+            path_source=widget.origin_header_file,
+            path_stripped=widget.origin_header_file.split("/")[-1],
+            searched=False
+        ))
+        internal_map.append(MapItem(
+            file_type=FileTypes.MAIN,
+            path_source=widget.origin_main_file,
+            path_stripped=widget.origin_main_file.split("/")[-1],
+            searched=False
+        ))
 
         index = 0
         # List of path names, to make 'searched' checking easier and quicker.
         reduced_path_list = [widget.origin_header_file, widget.origin_main_file]
 
         while (x:= internal_map[index]).searched == False:
-            index_file_data = read_file_raw(x.path).split("\n")
+            index_file_data = read_file_raw(x.path_source).split("\n")
             include_list = compile_widget_include_files(index_file_data, widget_directory_files, widget_directory_path)
-
-            for path in include_list:                
+            for path in include_list:
                 # Check against reduced_path_list for quicker and easier duplicate checking.    
-                if path not in reduced_path_list:
+                if path[1] not in reduced_path_list:
                     reduced_path_list.append(path)
-                    extension = path.split(".")[-1]
+                    extension = path[0].split(".")[-1]
                     internal_map.append(MapItem(
                         file_type=FileTypes.HEADER if extension == "h" else FileTypes.MAIN,
-                        path=path,
+                        path_source=path[1],
+                        path_stripped=path[0],
                         searched=False
                     ))
-
             x.searched = True
-
             if (index + 1) > (len(internal_map) - 1):
                 break;
             index += 1
+        grouping = MapGrouping(
+            rel_widget=widget,
+            root_header_path=widget.origin_header_file,
+            root_main_path=widget.origin_main_file,
+            internal_map=internal_map
+        )
 
-        file_map.update({widget.display_name:internal_map})
+        file_map.update({widget.display_name:grouping})
     return file_map
 
 
@@ -632,11 +706,11 @@ def main(_config_file_path: str, _clear_generated: bool, _origin_directory: str=
     print("\n")
     print_log(f"Generating widget bindings...")
     make_output_directory(_clear_generated)
-    linker_widget_data = compile_linker_widget_data(json_config_data.get("widgets"), _origin_directory, target_directory)
+    linker_widget_data = compile_config_widget_files(json_config_data.get("widgets"), _origin_directory, target_directory)
     make_target_directories(linker_widget_data, target_directory)
-    translate_target_files(linker_widget_data, target_directory)
-
     file_map = build_widget_file_map(linker_widget_data)
+    
+    translate_target_files(file_map, target_directory)
 
     write_linker_file_header(linker_widget_data, target_directory)
     print_log(f"Generated \'linker.h\'.")
