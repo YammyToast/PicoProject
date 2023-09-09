@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import time
 from csnake import CodeWriter, Variable, FormattedLiteral, Function, FuncPtr, Struct
 from mdutils.mdutils import MdUtils
-import functools
+import uuid
 
 """
     Attribute Name | Data Type | isFile?
@@ -53,6 +53,7 @@ TRANSLATE_IMAGE_REF_PATTERN = r"(.ref){1}([\w\t ]*=[\w\t ]*){1}((?!,).)+"
 TRANSLATE_IMAGE_PATH_PATTERN = r'^"(\.\.)*(\/|(?!\.\.)[a-zA-Z0-9_\-\/\.]+)+(\.[\w]+)"$'
 TRANSLATE_IMAGE_WIDTH_PATTERN = r'(.width){1}([\s\t\n ]*=[\s\t\n ]*){1}([0-9]+){1}([\s\t\n ]*)(?!,}){1}'
 TRANSLATE_IMAGE_HEIGHT_PATTERN = r'(.height){1}([\s\t\n ]*=[\s\t\n ]*){1}([0-9]+){1}([\s\t\n ]*)(?!,}){1}'
+TRANSLATE_IMAGE_VARIABLE = r'([ \s\n\t])*(\w)+([ \s\n\t])+(\w)+(?!=)+'
 
 class FileTypes(Enum):
     HEADER = 0
@@ -104,6 +105,7 @@ class MapGrouping:
 @dataclass
 class ImageLink:
     ref: str
+    uuid: str
     height: int
     width: int
 
@@ -354,11 +356,13 @@ def uniquify_root_file(_file_data: str, _widget_display_name: str, _schema: list
 
 
 
-def replace_image_declarations(_file_data: str) -> str:
-    # print(_file_data)
+def replace_image_declarations(_file_data: str, _source_directory: str, _translated_files: list[ImageLink] = []) -> str:
     try:
-        while (x := re.search(TRANSLATE_IMAGE_DEFINITION_PATTERN, _file_data)):
-            image_slice = _file_data[x.span()[0]:x.span()[1]].replace("\n", "")
+        working_file_data = _file_data
+        data_buf = [""]
+
+        while (x := re.search(TRANSLATE_IMAGE_DEFINITION_PATTERN, working_file_data)):
+            image_slice = working_file_data[x.span()[0]:x.span()[1]].replace("\n", "")
             if (h := re.search(TRANSLATE_IMAGE_HEIGHT_PATTERN, image_slice)) == None:
                 raise ImageRefError(image_slice, ImageRefErrorType.NOHEIGHT)
             image_height = image_slice[h.span()[0]:h.span()[1]].replace(" ", "").split("=")[-1]
@@ -367,21 +371,46 @@ def replace_image_declarations(_file_data: str) -> str:
                 raise ImageRefError(image_slice, ImageRefErrorType.NOWIDTH)
             image_width = image_slice[w.span()[0]:w.span()[1]].replace(" ", "").split("=")[-1]
 
-
             if (y := re.search(TRANSLATE_IMAGE_REF_PATTERN, image_slice)) == None:
                 raise ImageRefError(image_slice, ImageRefErrorType.NOREF)
             ref_slice = image_slice[y.span()[0]:y.span()[1]].replace(" ", "")
             ref_value = ref_slice.split("=")[1].strip("\"")
             
-            print(f"H: {image_height}, W: {image_width}, PATH: {ref_value}")
-            break;
+            image_path = os.path.join(_source_directory, os.path.normpath(ref_value))
+            # Check that image exists here
+            ####
+
+            if (s := re.search(TRANSLATE_IMAGE_VARIABLE, image_slice)) == None:
+                raise ImageRefError(image_slice, ImageRefErrorType.REFINVALID)
+            var_name = image_slice[s.span()[0]:s.span()[1]].split(" ")[-1].strip(" \n")
+            
+            image_uuid = f"img_{str(uuid.uuid4()).replace('-', '_')}"
+            _translated_files.append(ImageLink(
+                ref=image_path,
+                uuid=image_uuid,
+                height=image_height,
+                width=image_width
+            ))
+
+
+            data_buf_len = len(data_buf)
+            data_buf[data_buf_len - 1] = working_file_data[:x.span()[0]]
+            data_buf.append(f"""const UWORD {var_name} = {image_uuid}();""")
+            data_buf.append(working_file_data[x.span()[1]:])
+
+
+            working_file_data = _file_data[x.span()[1]:]
+
+
+        return "".join(data_buf)
     except ImageRefError as e:
         print(e)
         raise
 
-def translate_target_files(_file_map: list[MapGrouping], _target_directory: str):
+def translate_target_files(_file_map: list[MapGrouping], _origin_directory: str, _target_directory: str):
     for widget_name, widget_file_map in _file_map.items():
-        
+        image_source_directory = os.path.join(_target_directory, widget_file_map.rel_widget.display_name)
+        image_target_directory = os.path.join(_target_directory, widget_file_map.rel_widget.display_name)
         for file in widget_file_map.internal_map:
             file_data = read_file_raw(file.path_source)
             if file.path_source == widget_file_map.root_header_path:
@@ -389,8 +418,9 @@ def translate_target_files(_file_map: list[MapGrouping], _target_directory: str)
             if file.path_source == widget_file_map.root_main_path:
                 file_data = uniquify_root_file(file_data, widget_name, FUNCTION_WIDGET_SCHEMA_MAIN)
             
-            print(file)
-            file_data = replace_image_declarations(file_data)
+            translated_files: list[ImageLink] = []
+            file_data = replace_image_declarations(file_data, image_source_directory)
+            print(file_data)
 
             target_path = os.path.join(_target_directory, widget_name, file.path_stripped)
             with open(target_path, 'w') as file_writer:
@@ -710,7 +740,7 @@ def main(_config_file_path: str, _clear_generated: bool, _origin_directory: str=
     make_target_directories(linker_widget_data, target_directory)
     file_map = build_widget_file_map(linker_widget_data)
     
-    translate_target_files(file_map, target_directory)
+    translate_target_files(file_map, _origin_directory, target_directory)
 
     write_linker_file_header(linker_widget_data, target_directory)
     print_log(f"Generated \'linker.h\'.")
