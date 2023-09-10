@@ -116,6 +116,7 @@ RETURN_TYPE_STRUCT.add_variable(("display", "API_FUNC"))
 RETURN_TYPE_STRUCT.add_variable(("thumbnail", "API_FUNC"))
 RETURN_TYPE_STRUCT.add_variable(("settings", "API_FUNC"))
 RETURN_TYPE_STRUCT.add_variable(("update", "API_FUNC"))
+IMG_BUFFER_TYPE = "const UWORD"
 
 class InvalidFilePath(Exception):
     def __init__(self, _file_path_str: str):
@@ -333,10 +334,13 @@ def compile_config_widget_files(_widget_data: list, _origin_directory: str, _tar
     return data
 
 def make_target_directories(_widget_data: list[LinkerWidget], _target_directory: str):
+    assets_path = os.path.join(_target_directory, "assets")
+    Path(assets_path).mkdir(exist_ok=True)
     for widget in _widget_data:
-        path = f"{_target_directory}/{widget.display_name}"
+        path = os.path.join(_target_directory, widget.display_name)
         Path(path).mkdir(exist_ok=False)
         print_log(f"Created directory: \'{path}\'")
+
 
 def uniquify_root_file(_file_data: str, _widget_display_name: str, _schema: list):
     split_data = _file_data.split("\n")
@@ -356,11 +360,11 @@ def uniquify_root_file(_file_data: str, _widget_display_name: str, _schema: list
 
 
 
-def replace_image_declarations(_file_data: str, _source_directory: str, _translated_files: list[ImageLink] = []) -> str:
+def replace_image_declarations(_file_data: str, _source_directory: str) -> str:
     try:
         working_file_data = _file_data
         data_buf = [""]
-
+        translated_files = []
         while (x := re.search(TRANSLATE_IMAGE_DEFINITION_PATTERN, working_file_data)):
             image_slice = working_file_data[x.span()[0]:x.span()[1]].replace("\n", "")
             if (h := re.search(TRANSLATE_IMAGE_HEIGHT_PATTERN, image_slice)) == None:
@@ -385,7 +389,7 @@ def replace_image_declarations(_file_data: str, _source_directory: str, _transla
             var_name = image_slice[s.span()[0]:s.span()[1]].split(" ")[-1].strip(" \n")
             
             image_uuid = f"img_{str(uuid.uuid4()).replace('-', '_')}"
-            _translated_files.append(ImageLink(
+            translated_files.append(ImageLink(
                 ref=image_path,
                 uuid=image_uuid,
                 height=image_height,
@@ -395,21 +399,50 @@ def replace_image_declarations(_file_data: str, _source_directory: str, _transla
 
             data_buf_len = len(data_buf)
             data_buf[data_buf_len - 1] = working_file_data[:x.span()[0]]
-            data_buf.append(f"""const UWORD {var_name} = {image_uuid}();""")
+            data_buf.append(f"""{IMG_BUFFER_TYPE} {var_name} = {image_uuid};""")
             data_buf.append(working_file_data[x.span()[1]:])
 
 
             working_file_data = _file_data[x.span()[1]:]
 
-
-        return "".join(data_buf)
+        new_file_data = "".join(data_buf)
+        return (new_file_data, translated_files)
     except ImageRefError as e:
         print(e)
         raise
 
+def write_image_data_files(_translated_files: list[ImageLink], _assets_directory: str = "./generated/assets"):
+    try:
+        for file in _translated_files:
+            img_size = int(file.width) * int(file.height)
+            with open(os.path.join(_assets_directory, f"{file.uuid}.c"), 'w') as header_file:
+                cwr = CodeWriter()
+                cwr.include("DEV_Config.h")
+                cwr.include("GUI_Paint.h")
+                cwr.add_autogen_comment('configure.py')
+                cwr.start_if_def(f"_{file.uuid}_", invert=True)
+                cwr.add_define(f"_{file.uuid}_")
+                
+                img = Variable(
+                    file.uuid,
+                    IMG_BUFFER_TYPE,
+                    array=img_size,
+                    value="BURGER"
+                )
+                cwr.add_variable_initialization(img)
+                cwr.end_if_def()
+                
+                
+                header_file.write(str(cwr))
+    except FileExistsError as e:
+        e.add_note(f"File already exists: {e.args[0]}")
+        raise
+    except OSError:
+        raise
+
 def translate_target_files(_file_map: list[MapGrouping], _origin_directory: str, _target_directory: str):
     for widget_name, widget_file_map in _file_map.items():
-        image_source_directory = os.path.join(_target_directory, widget_file_map.rel_widget.display_name)
+        image_source_directory = os.path.join(_origin_directory, widget_file_map.rel_widget.display_name)
         image_target_directory = os.path.join(_target_directory, widget_file_map.rel_widget.display_name)
         for file in widget_file_map.internal_map:
             file_data = read_file_raw(file.path_source)
@@ -418,9 +451,10 @@ def translate_target_files(_file_map: list[MapGrouping], _origin_directory: str,
             if file.path_source == widget_file_map.root_main_path:
                 file_data = uniquify_root_file(file_data, widget_name, FUNCTION_WIDGET_SCHEMA_MAIN)
             
-            translated_files: list[ImageLink] = []
-            file_data = replace_image_declarations(file_data, image_source_directory)
-            print(file_data)
+
+            file_data, translated_files = replace_image_declarations(file_data, image_source_directory)
+            if len(translated_files) > 0:
+                write_image_data_files(translated_files)
 
             target_path = os.path.join(_target_directory, widget_name, file.path_stripped)
             with open(target_path, 'w') as file_writer:
@@ -441,10 +475,19 @@ def write_linker_file_header(_widget_data: list[LinkerWidget], _target_directory
     for widget in _widget_data:
         cwr.include(widget.target_header_file)
         cwr.include(widget.target_main_file)
-        widget_var = Variable(widget.display_name, RETURN_TYPE_STRUCT.name, qualifiers=(["const"]))
+        widget_var = Variable(
+            widget.display_name,
+            RETURN_TYPE_STRUCT.name,
+            qualifiers=(["const"])
+        )
         cwr.add_variable_declaration(widget_var)
 
-    widget_list_var = Variable("widget_links", RETURN_TYPE_STRUCT.name, qualifiers=(["const"]), array=len(_widget_data))
+    widget_list_var = Variable(
+        "widget_links",
+        RETURN_TYPE_STRUCT.name,
+        qualifiers=(["const"]),
+        array=len(_widget_data)
+    )
     cwr.add_variable_declaration(widget_list_var)
     
     widget_count_var = Variable("widget_count", "int", qualifiers=(["const"]))
