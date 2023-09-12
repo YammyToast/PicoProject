@@ -1,3 +1,4 @@
 csnake
 pytest
 mdutils
+Pillow

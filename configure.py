@@ -10,6 +10,7 @@ import time
 from csnake import CodeWriter, Variable, FormattedLiteral, Function, FuncPtr, Struct
 from mdutils.mdutils import MdUtils
 import uuid
+from PIL import Image
 
 """
     Attribute Name | Data Type | isFile?
@@ -62,6 +63,7 @@ class FileTypes(Enum):
 @dataclass
 class LinkerWidget:
     target_location: str
+    origin_location: str
     display_name: str
     origin_header_file: str
     origin_main_file: str
@@ -288,6 +290,14 @@ def verify_widget_contents(_widget_data: list, _directory: str):
 # ================================================================================================================
 # ================================================================================================================
 
+def get_image_file_data(_file_path: str) -> list[str]:
+    # im = Image.open(_file_path)
+    print(_file_path)
+
+
+# ================================================================================================================
+# ================================================================================================================
+
 def make_output_directory(_clear_generated: bool, _directory_path: str = "/generated"):
     try:
         directory_path = _directory_path
@@ -319,10 +329,17 @@ def compile_config_widget_files(_widget_data: list, _origin_directory: str, _tar
     data = []
     for widget in _widget_data:
         target_location = os.path.join(_target_directory + "/" + widget.get("displayName"))
+        origin_top_directory = list(
+            filter(
+                None,
+                widget.get("mainPath").split("/")
+            )
+        )
         squashed_display_name = widget.get("displayName").replace(" " , "_")
         data.append(
             LinkerWidget(
                 target_location,
+                os.path.join(_origin_directory, origin_top_directory[0]),
                 squashed_display_name,
                 os.path.join(_origin_directory + widget.get("headerPath")),
                 os.path.join(_origin_directory + widget.get("mainPath")),
@@ -415,6 +432,7 @@ def write_image_data_files(_translated_files: list[ImageLink], _assets_directory
     try:
         for file in _translated_files:
             img_size = int(file.width) * int(file.height)
+            img_data = get_image_file_data(file.ref)
             with open(os.path.join(_assets_directory, f"{file.uuid}.c"), 'w') as header_file:
                 cwr = CodeWriter()
                 cwr.include("DEV_Config.h")
@@ -442,7 +460,7 @@ def write_image_data_files(_translated_files: list[ImageLink], _assets_directory
 
 def translate_target_files(_file_map: list[MapGrouping], _origin_directory: str, _target_directory: str):
     for widget_name, widget_file_map in _file_map.items():
-        image_source_directory = os.path.join(_origin_directory, widget_file_map.rel_widget.display_name)
+        image_source_directory = os.path.join(_origin_directory, widget_file_map.rel_widget.origin_location)
         image_target_directory = os.path.join(_target_directory, widget_file_map.rel_widget.display_name)
         for file in widget_file_map.internal_map:
             file_data = read_file_raw(file.path_source)
