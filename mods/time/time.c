@@ -23,7 +23,7 @@ void display(UWORD* black_image) {
     DEV_Delay_ms(1000);
 
     image_link image1 = {
-         .ref = "./image.png",
+         .ref = "./resizedimage.png",
          .width = 84,
          .height = 84 
     };

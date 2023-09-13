@@ -11,6 +11,7 @@ from csnake import CodeWriter, Variable, FormattedLiteral, Function, FuncPtr, St
 from mdutils.mdutils import MdUtils
 import uuid
 from PIL import Image
+import math
 
 """
     Attribute Name | Data Type | isFile?
@@ -154,7 +155,7 @@ class ImageRefError(Exception):
         elif _type == ImageRefErrorType.REFINVALID:
             super().__init__(f"Value given for '.ref' is invalid: \n{_message}")
         elif _type == ImageRefErrorType.REFNOTFOUND:
-            super().__init__(f"Could not find ref: \n{_message}")
+            super().__init__(f"Could not find image pointed to by ref: \n{_message}")
 
 
 def print_log(_message: str):
@@ -291,9 +292,22 @@ def verify_widget_contents(_widget_data: list, _directory: str):
 # ================================================================================================================
 
 def get_image_file_data(_file_path: str) -> list[str]:
-    # im = Image.open(_file_path)
-    print(_file_path)
-
+    im = Image.open(_file_path)
+    # https://rgbcolorpicker.com/565
+    # 16 Bit Image Format
+    # R - 5 - 31
+    # G - 6 - 63
+    # B - 5 - 31
+    pixel_values: list[str] = []
+    for r, g, b in list(im.getdata()):
+        new_r = math.floor((r / 255) * 31)
+        new_g = math.floor((g / 255) * 63)
+        new_b = math.floor((b / 255) * 31)
+        shift_r = new_r << 11
+        shift_g = new_g << 5
+        rgb565 = shift_r | shift_g | new_b
+        pixel_values.append(hex(rgb565).upper())
+    return pixel_values
 
 # ================================================================================================================
 # ================================================================================================================
@@ -397,9 +411,11 @@ def replace_image_declarations(_file_data: str, _source_directory: str) -> str:
             ref_slice = image_slice[y.span()[0]:y.span()[1]].replace(" ", "")
             ref_value = ref_slice.split("=")[1].strip("\"")
             
+
             image_path = os.path.join(_source_directory, os.path.normpath(ref_value))
-            # Check that image exists here
-            ####
+
+            if os.path.isfile(image_path) == False:
+                raise ImageRefError(image_path, ImageRefErrorType.REFNOTFOUND)
 
             if (s := re.search(TRANSLATE_IMAGE_VARIABLE, image_slice)) == None:
                 raise ImageRefError(image_slice, ImageRefErrorType.REFINVALID)
@@ -433,6 +449,7 @@ def write_image_data_files(_translated_files: list[ImageLink], _assets_directory
         for file in _translated_files:
             img_size = int(file.width) * int(file.height)
             img_data = get_image_file_data(file.ref)
+            print(img_data)
             with open(os.path.join(_assets_directory, f"{file.uuid}.c"), 'w') as header_file:
                 cwr = CodeWriter()
                 cwr.include("DEV_Config.h")
@@ -441,13 +458,22 @@ def write_image_data_files(_translated_files: list[ImageLink], _assets_directory
                 cwr.start_if_def(f"_{file.uuid}_", invert=True)
                 cwr.add_define(f"_{file.uuid}_")
                 
-                img = Variable(
-                    file.uuid,
+                # WHY IS ESCAPE {} TO ADD 2 MORE {} ???
+                cwr.add_lines("{0} {1}[{2}] = {{\n{3}\n}}".format(
                     IMG_BUFFER_TYPE,
-                    array=img_size,
-                    value="BURGER"
-                )
-                cwr.add_variable_initialization(img)
+                    file.uuid,
+                    img_size,
+                    ', '.join(img_data)
+
+                ))
+                # img = Variable(
+                #     file.uuid,
+                #     IMG_BUFFER_TYPE,
+                #     array=img_size,
+                #     value=img_data
+                # )
+                # cwr.add_variable_initialization(img)
+
                 cwr.end_if_def()
                 
                 
@@ -460,8 +486,8 @@ def write_image_data_files(_translated_files: list[ImageLink], _assets_directory
 
 def translate_target_files(_file_map: list[MapGrouping], _origin_directory: str, _target_directory: str):
     for widget_name, widget_file_map in _file_map.items():
-        image_source_directory = os.path.join(_origin_directory, widget_file_map.rel_widget.origin_location)
-        image_target_directory = os.path.join(_target_directory, widget_file_map.rel_widget.display_name)
+        image_source_directory = os.path.normpath(widget_file_map.rel_widget.origin_location)
+        # image_target_directory = os.path.join(_target_directory, widget_file_map.rel_widget.display_name)
         for file in widget_file_map.internal_map:
             file_data = read_file_raw(file.path_source)
             if file.path_source == widget_file_map.root_header_path:
