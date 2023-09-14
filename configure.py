@@ -306,7 +306,11 @@ def get_image_file_data(_file_path: str) -> list[str]:
         shift_r = new_r << 11
         shift_g = new_g << 5
         rgb565 = shift_r | shift_g | new_b
-        pixel_values.append(hex(rgb565).upper())
+        # bug around here with small hex values being generated.
+        rgb565_hex = hex(rgb565).upper().rjust(6, "0")
+        if len(rgb565_hex) != 6:
+            print(rgb565_hex)
+        pixel_values.append(rgb565_hex)
     return pixel_values
 
 # ================================================================================================================
@@ -449,7 +453,6 @@ def write_image_data_files(_translated_files: list[ImageLink], _assets_directory
         for file in _translated_files:
             img_size = int(file.width) * int(file.height)
             img_data = get_image_file_data(file.ref)
-            print(img_data)
             with open(os.path.join(_assets_directory, f"{file.uuid}.c"), 'w') as header_file:
                 cwr = CodeWriter()
                 cwr.include("DEV_Config.h")
@@ -813,8 +816,7 @@ def generate_preview_bindings(_config_file_path: str, _target_directory: str = "
     binding_data = compile_bindings(widget_data, _origin_directory)
     write_markdown_file(binding_data, _target_directory)
 
-def main(_config_file_path: str, _clear_generated: bool, _origin_directory: str="./mods"):
-    target_directory = "./generated"
+def main(_config_file_path: str, _target_directory: str, _clear_generated: bool, _origin_directory: str="./mods"):
     print_log(f"Using config file: {_config_file_path}")
     json_config_data = load_config_file(_config_file_path, _origin_directory)
     print_log(f"Verified config file")
@@ -824,14 +826,14 @@ def main(_config_file_path: str, _clear_generated: bool, _origin_directory: str=
     print_log(f"Generating widget bindings...")
     make_output_directory(_clear_generated)
     linker_widget_data = compile_config_widget_files(json_config_data.get("widgets"), _origin_directory, target_directory)
-    make_target_directories(linker_widget_data, target_directory)
+    make_target_directories(linker_widget_data, _target_directory)
     file_map = build_widget_file_map(linker_widget_data)
     
-    translate_target_files(file_map, _origin_directory, target_directory)
+    translate_target_files(file_map, _origin_directory, _target_directory)
 
-    write_linker_file_header(linker_widget_data, target_directory)
+    write_linker_file_header(linker_widget_data, _target_directory)
     print_log(f"Generated \'linker.h\'.")
-    write_linker_file_main(linker_widget_data, target_directory)
+    write_linker_file_main(linker_widget_data, _target_directory)
     print_log(f"Generated \'linker.c\'.")
 
 
@@ -839,6 +841,7 @@ if __name__ == '__main__':
     start_ts = time.time()
     argv_config_file = "./config.json"
     argv_clear_generated = True
+    argv_target_directory = "./generated"
     if '-c' in sys.argv:
         argv_index = sys.argv.index('-c')
         if argv_index == (len(sys.argv) - 1):
@@ -847,17 +850,25 @@ if __name__ == '__main__':
             
         argv_config_file = sys.argv[argv_index + 1];
 
-    if '-p' in sys.argv:
+    if '-p' in sys.argv or '--preview-bindings' in sys.argv:
         generate_preview_bindings(argv_config_file)
         end_ts = time.time()
         print("\nFinished. Completed in {:2f} seconds.".format(end_ts - start_ts))
         sys.exit(0)
 
-    if '-nc' in sys.argv:
+    if '-t' in sys.argv:
+        if argv_index == (len(sys.argv) - 1):
+            argv_index = sys.argv.index('-t')
+            print("No value provided for \'Target-Directory-Path\' argument \'-t\'.")
+            sys.exit(0)
+        argv_target_directory = sys.argv[argv_index + 1]
+
+
+    if '-ncg' in sys.argv or '--no-clear-generated' in sys.argv:
         argv_clear_generated = False        
 
 
-    main(argv_config_file, argv_clear_generated);
+    main(argv_config_file, argv_target_directory, argv_clear_generated);
     end_ts = time.time()
     print("\nFinished. Completed in {:2f} seconds.".format(end_ts - start_ts))
 
