@@ -12,6 +12,7 @@ from mdutils.mdutils import MdUtils
 import uuid
 from PIL import Image
 import math
+import argparse
 
 """
     Attribute Name | Data Type | isFile?
@@ -816,7 +817,7 @@ def generate_preview_bindings(_config_file_path: str, _target_directory: str = "
     binding_data = compile_bindings(widget_data, _origin_directory)
     write_markdown_file(binding_data, _target_directory)
 
-def main(_config_file_path: str, _target_directory: str, _clear_generated: bool, _origin_directory: str="./mods"):
+def main(_config_file_path: str, _target_directory: str, _origin_directory: str, _clear_generated: bool):
     print_log(f"Using config file: {_config_file_path}")
     json_config_data = load_config_file(_config_file_path, _origin_directory)
     print_log(f"Verified config file")
@@ -825,7 +826,7 @@ def main(_config_file_path: str, _target_directory: str, _clear_generated: bool,
     print("\n")
     print_log(f"Generating widget bindings...")
     make_output_directory(_clear_generated)
-    linker_widget_data = compile_config_widget_files(json_config_data.get("widgets"), _origin_directory, target_directory)
+    linker_widget_data = compile_config_widget_files(json_config_data.get("widgets"), _origin_directory, _target_directory)
     make_target_directories(linker_widget_data, _target_directory)
     file_map = build_widget_file_map(linker_widget_data)
     
@@ -836,39 +837,55 @@ def main(_config_file_path: str, _target_directory: str, _clear_generated: bool,
     write_linker_file_main(linker_widget_data, _target_directory)
     print_log(f"Generated \'linker.c\'.")
 
+# ================================================================================================================
+# ================================================================================================================
+
 
 if __name__ == '__main__':
     start_ts = time.time()
-    argv_config_file = "./config.json"
-    argv_clear_generated = True
-    argv_target_directory = "./generated"
-    if '-c' in sys.argv:
-        argv_index = sys.argv.index('-c')
-        if argv_index == (len(sys.argv) - 1):
-            print("No value provided for \'Config-File-Path\' argument \'-c\'.")
-            sys.exit(0)
-            
-        argv_config_file = sys.argv[argv_index + 1];
 
-    if '-p' in sys.argv or '--preview-bindings' in sys.argv:
-        generate_preview_bindings(argv_config_file)
-        end_ts = time.time()
-        print("\nFinished. Completed in {:2f} seconds.".format(end_ts - start_ts))
-        sys.exit(0)
+    argv_generated_preview = False
+    argv_clear_target = True
 
-    if '-t' in sys.argv:
-        if argv_index == (len(sys.argv) - 1):
-            argv_index = sys.argv.index('-t')
-            print("No value provided for \'Target-Directory-Path\' argument \'-t\'.")
-            sys.exit(0)
-        argv_target_directory = sys.argv[argv_index + 1]
+    parser = argparse.ArgumentParser(description='Configuration Tool for WaifuWatch V.1')
+    parser.add_argument(
+        '-c', '--config',
+        help="Path pointing to a custom JSON config file.",
+        action="store",
+        default="./config.json",
+    )
+    parser.add_argument(
+        '-p', '--preview-bindings',
+        help="Run generate-preview-bindings subprogram.",
+        action="store_const",
+        const=True,
+        default=False
+    )
+    parser.add_argument(
+        '-t', '--target-dir',
+        help="Specify the directory in which configured files will be written.",
+        action="store",
+        default="./generated"
+    )
+    parser.add_argument(
+        '-o', '--origin-dir',
+        help="Specify the directory in which the mod directories are located.",
+        action="store",
+        default="./mods"
+    )
+    parser.add_argument(
+        '-nct', '--no-clear-target',
+        help="Indicate that the target directory should NOT be cleared of existing files by the tool.",
+        action="store_const",
+        const=False,
+        default=True
+    )
 
+    args = parser.parse_args()
+    print(args)
 
-    if '-ncg' in sys.argv or '--no-clear-generated' in sys.argv:
-        argv_clear_generated = False        
+    main(args.config, args.target_dir, args.origin_dir, args.no_clear_target)
 
-
-    main(argv_config_file, argv_target_directory, argv_clear_generated);
     end_ts = time.time()
     print("\nFinished. Completed in {:2f} seconds.".format(end_ts - start_ts))
 
