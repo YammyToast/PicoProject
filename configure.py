@@ -216,6 +216,9 @@ def load_config_file(_config_file_path: str, _directory: str, _schema = CONFIG_W
         for widget in parsed_data.get("widgets"):
             if len(x:= verify_config_part(widget, _schema, _directory)) != 0:
                 raise MissingAttribute(x)
+            
+        
+        
         return parsed_data
 
     except MissingAttribute as e:
@@ -311,8 +314,6 @@ def get_image_file_data(_file_path: str) -> list[str]:
         rgb565 = shift_r | shift_g | new_b
         # bug around here with small hex values being generated.
         rgb565_hex = hex(rgb565).upper().rjust(6, "0")
-        if len(rgb565_hex) != 6:
-            print(rgb565_hex)
         pixel_values.append(rgb565_hex)
     return pixel_values
 
@@ -493,11 +494,10 @@ def write_image_data_files(_translated_files: list[ImageLink], _assets_directory
     except OSError:
         raise
 
-def translate_target_files(_file_map: list[MapGrouping], _origin_directory: str, _target_directory: str):
+def transpile_target_files(_file_map: list[MapGrouping], _origin_directory: str, _target_directory: str):
     for widget_name, widget_file_map in _file_map.items():
         image_source_directory = os.path.normpath(widget_file_map.rel_widget.origin_location)
         # image_target_directory = os.path.join(_target_directory, widget_file_map.rel_widget.display_name)
-        print(widget_file_map)
         for file in widget_file_map.internal_map:
             print_log(f"Transpiling file: {file.path_source}")
             file_data = read_file_raw(file.path_source)
@@ -505,6 +505,8 @@ def translate_target_files(_file_map: list[MapGrouping], _origin_directory: str,
                 file_data = uniquify_root_file(file_data, widget_name, FUNCTION_WIDGET_SCHEMA_HEADER)
             if file.path_source == widget_file_map.root_main_path:
                 file_data = uniquify_root_file(file_data, widget_name, FUNCTION_WIDGET_SCHEMA_MAIN)
+            # if file.path_source == widget_file_map.rel_widget.origin_binding_file:
+            #     continue;
             
             file_data, translated_files = replace_image_declarations(file_data, image_source_directory)
 
@@ -515,6 +517,40 @@ def translate_target_files(_file_map: list[MapGrouping], _origin_directory: str,
             with open(target_path, 'w') as file_writer:
                 file_writer.write(str(file_data))
 
+def collect_binding_files(_file_map: list[MapGrouping]) -> list[str]:
+        paths = []
+        for widget_name, map_grouping in _file_map.items():
+            for file in map_grouping.internal_map:
+                if map_grouping.rel_widget.origin_binding_file == file.path_source:
+                    paths.append(file.path_source)
+        return paths
+
+def transpile_binding_files(_file_map: list[MapGrouping]):
+    try:
+        # compile binding hooks created by widget
+        # compile binding impls by personality
+        # find union in sets
+        # transpile bindings to target file(s?)
+        # EXT ------
+        # Remove unneccessary calls to bindings that have no impl
+        # in widget files.
+        binding_file_paths = collect_binding_files(_file_map)
+        binding_funcs = []
+        for binding_file in binding_file_paths:
+            file_data = list(
+                filter(
+                    None, 
+                    read_file_raw(
+                        binding_file
+                    ).split("\n")
+                )
+            )
+            # REUSE BINDING COMPILATION FUNCTION OF PREVIEW!!!!
+            # I AM HIM
+            binding_funcs = compile_file_bindings(file_data)
+            print(binding_funcs)
+    except Exception as e:
+        raise
 # ================================================================================================================
 # ================================================================================================================
 
@@ -586,6 +622,8 @@ def write_linker_file_main(_widget_data: list[LinkerWidget], _target_directory: 
     with open(os.path.join(_target_directory + "/" + "linker.c"), 'w') as main_file:
         main_file.write(str(cwr))
 
+def write_binding_file_main():
+    print("TODO")
 
 # ================================================================================================================
 # ================================================================================================================
@@ -827,6 +865,7 @@ def generate_preview_bindings(_config_file_path: str, _target_directory: str, _o
 def main(_config_file_path: str, _target_directory: str, _origin_directory: str, _clear_generated: bool):
     print_log(f"Using config file: {_config_file_path}")
     json_config_data = load_config_file(_config_file_path, _origin_directory)
+    print("JSON", json_config_data)
     print_log(f"Verified config file")
     print_log(f"Verifying file contents")    
     verify_widget_contents(json_config_data.get("widgets"), _origin_directory)
@@ -837,7 +876,9 @@ def main(_config_file_path: str, _target_directory: str, _origin_directory: str,
     make_target_directories(linker_widget_data, _target_directory)
     file_map = build_widget_file_map(linker_widget_data)
     
-    translate_target_files(file_map, _origin_directory, _target_directory)
+    transpile_target_files(file_map, _origin_directory, _target_directory)
+
+    transpile_binding_files(file_map)
 
     write_linker_file_header(linker_widget_data, _target_directory)
     print_log(f"Generated \'linker.h\'.")

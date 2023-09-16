@@ -10,7 +10,9 @@
 #include "time.h"
 #include "calc.c"
 
+
 #include "paintAPI.h"
+#include "bindings.h"
 
 #ifndef TIME_MAIN
 #define TIME_MAIN
