@@ -399,7 +399,7 @@ def uniquify_root_file(_file_data: str, _widget_display_name: str, _schema: list
 def replace_image_declarations(_file_data: str, _source_directory: str) -> str:
     try:
         working_file_data = _file_data
-        data_buf = [""]
+        data_buf = [_file_data]
         translated_files = []
         while (x := re.search(TRANSLATE_IMAGE_DEFINITION_PATTERN, working_file_data)):
             image_slice = working_file_data[x.span()[0]:x.span()[1]].replace("\n", "")
@@ -442,7 +442,7 @@ def replace_image_declarations(_file_data: str, _source_directory: str) -> str:
 
 
             working_file_data = _file_data[x.span()[1]:]
-
+    
         new_file_data = "".join(data_buf)
         return (new_file_data, translated_files)
     except ImageRefError as e:
@@ -499,8 +499,10 @@ def translate_target_files(_file_map: list[MapGrouping], _origin_directory: str,
             if file.path_source == widget_file_map.root_main_path:
                 file_data = uniquify_root_file(file_data, widget_name, FUNCTION_WIDGET_SCHEMA_MAIN)
             
-
+            print(len(file_data))
             file_data, translated_files = replace_image_declarations(file_data, image_source_directory)
+            print(len(file_data))
+
             if len(translated_files) > 0:
                 write_image_data_files(translated_files)
 
@@ -879,7 +881,6 @@ if __name__ == '__main__':
     )
 
     args = parser.parse_args()
-    print(args)
 
     if args.preview_bindings == True:
         generate_preview_bindings(args.config, args.target_dir, args.origin_dir)
