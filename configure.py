@@ -67,10 +67,12 @@ class LinkerWidget:
     target_location: str
     origin_location: str
     display_name: str
-    origin_header_file: str
+    origin_header_file: str    
     origin_main_file: str
+    origin_binding_file: str
     target_header_file: str
     target_main_file: str
+    target_binding_file: str
 
 @dataclass
 class BindingFunctionParam:
@@ -357,14 +359,16 @@ def compile_config_widget_files(_widget_data: list, _origin_directory: str, _tar
         squashed_display_name = widget.get("displayName").replace(" " , "_")
         data.append(
             LinkerWidget(
-                target_location,
-                os.path.join(_origin_directory, origin_top_directory[0]),
-                squashed_display_name,
-                os.path.join(_origin_directory + widget.get("headerPath")),
-                os.path.join(_origin_directory + widget.get("mainPath")),
+                target_location=target_location,
+                origin_location=os.path.join(_origin_directory, origin_top_directory[0]),
+                display_name=squashed_display_name,
+                origin_header_file=os.path.join(_origin_directory + widget.get("headerPath")),
+                origin_main_file=os.path.join(_origin_directory + widget.get("mainPath")),
+                origin_binding_file=os.path.join(_origin_directory + widget.get("bindings")),
 
-                os.path.join(squashed_display_name + "/" + extract_file_name(widget.get("headerPath"))),
-                os.path.join(squashed_display_name + "/" + extract_file_name(widget.get("mainPath"))),
+                target_header_file=os.path.join(squashed_display_name + "/" + extract_file_name(widget.get("headerPath"))),
+                target_main_file=os.path.join(squashed_display_name + "/" + extract_file_name(widget.get("mainPath"))),
+                target_binding_file=os.path.join(squashed_display_name + "/" + extract_file_name(widget.get("bindings")))
             )
         )
     return data
@@ -393,8 +397,6 @@ def uniquify_root_file(_file_data: str, _widget_display_name: str, _schema: list
                 continue;
         line_num += 1
     return ('\n'.join(split_data))
-
-
 
 def replace_image_declarations(_file_data: str, _source_directory: str) -> str:
     try:
@@ -495,7 +497,9 @@ def translate_target_files(_file_map: list[MapGrouping], _origin_directory: str,
     for widget_name, widget_file_map in _file_map.items():
         image_source_directory = os.path.normpath(widget_file_map.rel_widget.origin_location)
         # image_target_directory = os.path.join(_target_directory, widget_file_map.rel_widget.display_name)
+        print(widget_file_map)
         for file in widget_file_map.internal_map:
+            print_log(f"Transpiling file: {file.path_source}")
             file_data = read_file_raw(file.path_source)
             if file.path_source == widget_file_map.root_header_path:
                 file_data = uniquify_root_file(file_data, widget_name, FUNCTION_WIDGET_SCHEMA_HEADER)
