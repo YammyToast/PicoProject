@@ -29,6 +29,12 @@ CONFIG_BINDONLY_SCHEMA = [
     ("bindings", str, True)
 ]
 
+CONFIG_PERSONALITY_SCHEMA = [
+    ("displayName", str, False),
+    ("scriptBindings", str, True)
+]
+
+
 """
     Function Name | Pattern
 """
@@ -200,7 +206,7 @@ def verify_config_part(_part: dict, _schema: list, _directory: str) -> list[tupl
 
 
 
-def load_config_file(_config_file_path: str, _directory: str, _schema = CONFIG_WIDGET_SCHEMA) -> dict:
+def load_config_file(_config_file_path: str, _origin_directory: str, _schema = CONFIG_WIDGET_SCHEMA) -> dict:
     try:
         if not verify_file_path(_config_file_path):
             raise InvalidFilePath(_config_file_path)
@@ -211,14 +217,20 @@ def load_config_file(_config_file_path: str, _directory: str, _schema = CONFIG_W
         print_log(f"Verifying Data...")
         if parsed_data.get("widgets") is None:
             raise MissingAttribute(["widgets", MissingAttributeType.MISSING])
-
         print_log(f"Found Attribute \'widgets\'")
+
         for widget in parsed_data.get("widgets"):
-            if len(x:= verify_config_part(widget, _schema, _directory)) != 0:
+            if len(x:= verify_config_part(widget, _schema, _origin_directory)) != 0:
                 raise MissingAttribute(x)
             
+        if parsed_data.get("personality") is None:
+            raise MissingAttribute(["personality", MissingAttributeType.MISSING])
+        print_log(f"Found Attribute \'personality\'")
         
-        
+        if len(y:= verify_config_part(parsed_data.get("personality"), CONFIG_PERSONALITY_SCHEMA, _origin_directory)) != 0:
+            raise MissingAttribute(y)
+
+
         return parsed_data
 
     except MissingAttribute as e:
