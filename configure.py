@@ -440,10 +440,13 @@ def replace_image_declarations(_file_data: str, _source_directory: str) -> str:
             data_buf.append(f"""{IMG_BUFFER_TYPE} {var_name} = {image_uuid};""")
             data_buf.append(working_file_data[x.span()[1]:])
 
-
             working_file_data = _file_data[x.span()[1]:]
     
         new_file_data = "".join(data_buf)
+
+        for include in translated_files:
+            new_file_data = f"#include \"{include.uuid}.c\"\n{new_file_data}"
+
         return (new_file_data, translated_files)
     except ImageRefError as e:
         print(e)
@@ -499,9 +502,7 @@ def translate_target_files(_file_map: list[MapGrouping], _origin_directory: str,
             if file.path_source == widget_file_map.root_main_path:
                 file_data = uniquify_root_file(file_data, widget_name, FUNCTION_WIDGET_SCHEMA_MAIN)
             
-            print(len(file_data))
             file_data, translated_files = replace_image_declarations(file_data, image_source_directory)
-            print(len(file_data))
 
             if len(translated_files) > 0:
                 write_image_data_files(translated_files)
