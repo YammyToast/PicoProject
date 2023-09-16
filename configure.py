@@ -808,7 +808,7 @@ def write_markdown_file(_binding_data: list[BindingFileGrouping], _target_direct
 # ================================================================================================================
 # ================================================================================================================
 
-def generate_preview_bindings(_config_file_path: str, _target_directory: str = ".", _origin_directory: str="./mods"):
+def generate_preview_bindings(_config_file_path: str, _target_directory: str, _origin_directory: str):
     json_config_data = load_config_file(_config_file_path, _origin_directory, CONFIG_BINDONLY_SCHEMA)
     widget_data = json_config_data.get("widgets")
     print("\n")
@@ -843,9 +843,6 @@ def main(_config_file_path: str, _target_directory: str, _origin_directory: str,
 
 if __name__ == '__main__':
     start_ts = time.time()
-
-    argv_generated_preview = False
-    argv_clear_target = True
 
     parser = argparse.ArgumentParser(description='Configuration Tool for WaifuWatch V.1')
     parser.add_argument(
@@ -884,7 +881,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
 
-    main(args.config, args.target_dir, args.origin_dir, args.no_clear_target)
+    if args.preview_bindings == True:
+        generate_preview_bindings(args.config, args.target_dir, args.origin_dir)
+    else:
+        main(args.config, args.target_dir, args.origin_dir, args.no_clear_target)
 
     end_ts = time.time()
     print("\nFinished. Completed in {:2f} seconds.".format(end_ts - start_ts))
