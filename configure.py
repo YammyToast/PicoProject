@@ -230,7 +230,6 @@ def load_config_file(_config_file_path: str, _origin_directory: str, _schema = C
         if len(y:= verify_config_part(parsed_data.get("personality"), CONFIG_PERSONALITY_SCHEMA, _origin_directory)) != 0:
             raise MissingAttribute(y)
 
-
         return parsed_data
 
     except MissingAttribute as e:
@@ -537,7 +536,24 @@ def collect_binding_files(_file_map: list[MapGrouping]) -> list[str]:
                     paths.append(file.path_source)
         return paths
 
-def transpile_binding_files(_file_map: list[MapGrouping]):
+def collect_binding_funcs(_file_data: str):
+    funcs = []
+    # THIS IS NOT SAFE AS FUNCTION DECLS CAN SPAN OVER MULTIPLE LINES.
+    for line in _file_data:
+        if re.search(BINDING_FUNCTION_PATTERN, line) == None:
+            continue;
+        split_function_def = re.split("\(|\)|\s",line)
+        if len(split_function_def) < 3:
+            raise SyntaxError(line)
+        funcs.append(
+            line.strip(" }{;")
+        )
+    return funcs
+
+def write_binding_file(_binding_data: list[str]):
+
+
+def transpile_binding_files(_file_map: list[MapGrouping], _binding_impl_file_path: str):
     try:
         # compile binding hooks created by widget
         # compile binding impls by personality
@@ -546,6 +562,16 @@ def transpile_binding_files(_file_map: list[MapGrouping]):
         # EXT ------
         # Remove unneccessary calls to bindings that have no impl
         # in widget files.
+        binding_impl_file_data = list(
+                filter(
+                    None, 
+                    read_file_raw(
+                        _binding_impl_file_path
+                    ).split("\n")
+                )
+            )
+        binding_impl_funcs = collect_binding_funcs(binding_impl_file_data)
+
         binding_file_paths = collect_binding_files(_file_map)
         binding_funcs = []
         for binding_file in binding_file_paths:
@@ -557,12 +583,14 @@ def transpile_binding_files(_file_map: list[MapGrouping]):
                     ).split("\n")
                 )
             )
-            # REUSE BINDING COMPILATION FUNCTION OF PREVIEW!!!!
-            # I AM HIM
-            binding_funcs = compile_file_bindings(file_data)
-            print(binding_funcs)
+            binding_funcs = collect_binding_funcs(file_data)
+        # Find intersection of widget bindings and implemented bindings.
+        binding_funcs_matches = [value for value in binding_funcs if value in binding_impl_funcs]
+        
+
     except Exception as e:
         raise
+
 # ================================================================================================================
 # ================================================================================================================
 
@@ -890,7 +918,10 @@ def main(_config_file_path: str, _target_directory: str, _origin_directory: str,
     
     transpile_target_files(file_map, _origin_directory, _target_directory)
 
-    transpile_binding_files(file_map)
+    transpile_binding_files(
+        file_map,
+        _origin_directory + json_config_data.get("personality").get("scriptBindings")
+    )
 
     write_linker_file_header(linker_widget_data, _target_directory)
     print_log(f"Generated \'linker.h\'.")
