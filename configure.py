@@ -528,12 +528,16 @@ def transpile_target_files(_file_map: list[MapGrouping], _origin_directory: str,
             with open(target_path, 'w') as file_writer:
                 file_writer.write(str(file_data))
 
-def collect_binding_files(_file_map: list[MapGrouping]) -> list[str]:
+def collect_binding_files(_file_map: list[MapGrouping]) -> list[tuple[str, str, str]]:
         paths = []
         for widget_name, map_grouping in _file_map.items():
             for file in map_grouping.internal_map:
                 if map_grouping.rel_widget.origin_binding_file == file.path_source:
-                    paths.append(file.path_source)
+                    paths.append((
+                        file.path_source,
+                        map_grouping.rel_widget.target_binding_file,
+                        widget_name
+                    ))
         return paths
 
 def collect_binding_funcs(_file_data: str):
@@ -550,10 +554,24 @@ def collect_binding_funcs(_file_data: str):
         )
     return funcs
 
-def write_binding_file(_binding_data: list[str]):
+def capture_binding_func(_file_data: str, _function_form: str):
+    print("CAPTURE:", _function_form)
 
 
-def transpile_binding_files(_file_map: list[MapGrouping], _binding_impl_file_path: str):
+def write_binding_file(_binding_data: list[str], _target_file_path: str, _display_name: str):
+    cwr = CodeWriter()
+
+    cwr.add_autogen_comment('configure.py')
+    cwr.start_if_def(f"_LINKER_BINDINGS_{_display_name}_", invert=True)
+    cwr.add_define(f"_LINKER_BINDINGS_{_display_name}_")
+
+    print(_binding_data)
+
+    cwr.end_if_def()
+    with open(_target_file_path, 'w') as header_file:
+        header_file.write(str(cwr))
+
+def transpile_binding_files(_file_map: list[MapGrouping], _binding_impl_file_path: str, _target_directory: str):
     try:
         # compile binding hooks created by widget
         # compile binding impls by personality
@@ -579,13 +597,22 @@ def transpile_binding_files(_file_map: list[MapGrouping], _binding_impl_file_pat
                 filter(
                     None, 
                     read_file_raw(
-                        binding_file
+                        binding_file[0]
                     ).split("\n")
                 )
             )
             binding_funcs = collect_binding_funcs(file_data)
-        # Find intersection of widget bindings and implemented bindings.
-        binding_funcs_matches = [value for value in binding_funcs if value in binding_impl_funcs]
+            # Find intersection of widget bindings and implemented bindings.
+            binding_funcs_matches = [value for value in binding_funcs if value in binding_impl_funcs]
+            matches_full = []
+            for func in binding_funcs_matches:
+                matches_full.append(capture_binding_func(file_data, func))
+
+            write_binding_file(
+                binding_funcs_matches,
+                os.path.join(_target_directory, binding_file[1]),
+                binding_file[2]
+            )                        
         
 
     except Exception as e:
@@ -920,7 +947,8 @@ def main(_config_file_path: str, _target_directory: str, _origin_directory: str,
 
     transpile_binding_files(
         file_map,
-        _origin_directory + json_config_data.get("personality").get("scriptBindings")
+        _origin_directory + json_config_data.get("personality").get("scriptBindings"),
+        _target_directory
     )
 
     write_linker_file_header(linker_widget_data, _target_directory)
