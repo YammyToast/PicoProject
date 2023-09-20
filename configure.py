@@ -555,8 +555,37 @@ def collect_binding_funcs(_file_data: str):
     return funcs
 
 def capture_binding_func(_file_data: str, _function_form: str):
-    print("CAPTURE:", _function_form)
+    try:
+        if (func_begin:= _file_data.find(_function_form)) == -1:
+            # this should never throw but just in case.
+            raise
+        # Scope to the beginning of the searched function so we search against the correct '{'.
+        search_slice = _file_data[func_begin:]
+        if (closure_start:= search_slice.find("{")) == -1:
+            raise
 
+        # Increase index by 1, as .find returns an index that includes the 'root' closure for the function.
+        # this offset the closure count by 1 and the while loop couldn't work.
+        search_index = closure_start + 1
+        # Start at 1, to account for the root closure.
+        # Once the closing '}' is found, the closure count will equal 0.
+        closure_count = 1;
+        while closure_count > 0:
+            if (search_index == len(search_slice)):
+                raise
+
+            search_val = search_slice[search_index]
+            
+            if search_val == "{":
+                closure_count += 1
+            if search_val == "}":
+                closure_count -= 1
+            
+            search_index += 1
+        return _file_data[func_begin:func_begin+search_index]
+        # print(search_slice[closure_start:search_index])
+    except Exception as e:
+        raise
 
 def write_binding_file(_binding_data: list[str], _target_file_path: str, _display_name: str):
     cwr = CodeWriter()
@@ -565,7 +594,8 @@ def write_binding_file(_binding_data: list[str], _target_file_path: str, _displa
     cwr.start_if_def(f"_LINKER_BINDINGS_{_display_name}_", invert=True)
     cwr.add_define(f"_LINKER_BINDINGS_{_display_name}_")
 
-    print(_binding_data)
+    for func in _binding_data:
+        cwr.add_lines(func)
 
     cwr.end_if_def()
     with open(_target_file_path, 'w') as header_file:
@@ -587,7 +617,8 @@ def transpile_binding_files(_file_map: list[MapGrouping], _binding_impl_file_pat
                         _binding_impl_file_path
                     ).split("\n")
                 )
-            )
+        )
+
         binding_impl_funcs = collect_binding_funcs(binding_impl_file_data)
 
         binding_file_paths = collect_binding_files(_file_map)
@@ -604,16 +635,18 @@ def transpile_binding_files(_file_map: list[MapGrouping], _binding_impl_file_pat
             binding_funcs = collect_binding_funcs(file_data)
             # Find intersection of widget bindings and implemented bindings.
             binding_funcs_matches = [value for value in binding_funcs if value in binding_impl_funcs]
+            
             matches_full = []
             for func in binding_funcs_matches:
-                matches_full.append(capture_binding_func(file_data, func))
+                # Look at impl file data to find implementation
+                # We've already done the existence checks at this point so we can just do it.
+                matches_full.append(capture_binding_func("\n".join(binding_impl_file_data), func))
 
             write_binding_file(
                 binding_funcs_matches,
                 os.path.join(_target_directory, binding_file[1]),
                 binding_file[2]
             )                        
-        
 
     except Exception as e:
         raise
@@ -932,7 +965,6 @@ def generate_preview_bindings(_config_file_path: str, _target_directory: str, _o
 def main(_config_file_path: str, _target_directory: str, _origin_directory: str, _clear_generated: bool):
     print_log(f"Using config file: {_config_file_path}")
     json_config_data = load_config_file(_config_file_path, _origin_directory)
-    print("JSON", json_config_data)
     print_log(f"Verified config file")
     print_log(f"Verifying file contents")    
     verify_widget_contents(json_config_data.get("widgets"), _origin_directory)
