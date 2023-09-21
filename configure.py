@@ -587,19 +587,7 @@ def capture_binding_func(_file_data: str, _function_form: str):
     except Exception as e:
         raise
 
-def write_binding_file(_binding_data: list[str], _target_file_path: str, _display_name: str):
-    cwr = CodeWriter()
 
-    cwr.add_autogen_comment('configure.py')
-    cwr.start_if_def(f"_LINKER_BINDINGS_{_display_name}_", invert=True)
-    cwr.add_define(f"_LINKER_BINDINGS_{_display_name}_")
-
-    for func in _binding_data:
-        cwr.add_lines(func)
-
-    cwr.end_if_def()
-    with open(_target_file_path, 'w') as header_file:
-        header_file.write(str(cwr))
 
 def transpile_binding_files(_file_map: list[MapGrouping], _binding_impl_file_path: str, _target_directory: str):
     try:
@@ -619,8 +607,10 @@ def transpile_binding_files(_file_map: list[MapGrouping], _binding_impl_file_pat
                 )
         )
 
+        print_log(f"Collecting implemented binding functions.")
         binding_impl_funcs = collect_binding_funcs(binding_impl_file_data)
 
+        print_log(f"Collecting widget binding-file paths.")
         binding_file_paths = collect_binding_files(_file_map)
         binding_funcs = []
         for binding_file in binding_file_paths:
@@ -632,21 +622,33 @@ def transpile_binding_files(_file_map: list[MapGrouping], _binding_impl_file_pat
                     ).split("\n")
                 )
             )
+            print_log(f"Collecting bindings from \'{binding_file[1]}\'")
             binding_funcs = collect_binding_funcs(file_data)
             # Find intersection of widget bindings and implemented bindings.
             binding_funcs_matches = [value for value in binding_funcs if value in binding_impl_funcs]
             
-            matches_full = []
+            matches_captures = []
             for func in binding_funcs_matches:
                 # Look at impl file data to find implementation
                 # We've already done the existence checks at this point so we can just do it.
-                matches_full.append(capture_binding_func("\n".join(binding_impl_file_data), func))
+                matches_captures.append(capture_binding_func("\n".join(binding_impl_file_data), func))
 
+            print_log(f"Transpiling to file: \'{os.path.join(_target_directory, binding_file[1])}\'")
+            # WRITE HEADER
             write_binding_file(
                 binding_funcs_matches,
                 os.path.join(_target_directory, binding_file[1]),
-                binding_file[2]
-            )                        
+                binding_file[2],
+                True
+            )
+            print_log(f"Transpiling to file: \'{os.path.join(_target_directory, binding_file[1]).replace('.h', '.c')}\'")
+            #WRITE MAIN
+            write_binding_file(
+                matches_captures,
+                os.path.join(_target_directory, binding_file[1]).replace(".h", ".c"),
+                binding_file[2],
+                False
+            )                                          
 
     except Exception as e:
         raise
@@ -722,8 +724,20 @@ def write_linker_file_main(_widget_data: list[LinkerWidget], _target_directory: 
     with open(os.path.join(_target_directory + "/" + "linker.c"), 'w') as main_file:
         main_file.write(str(cwr))
 
-def write_binding_file_main():
-    print("TODO")
+def write_binding_file(_binding_data: list[str], _target_file_path: str, _display_name: str, _header: bool):
+    cwr = CodeWriter()
+
+    cwr.add_autogen_comment('configure.py')
+    suffix = "H" if _header == True else "C" 
+    cwr.start_if_def(f"_LINKER_BINDINGS_{_display_name}_{suffix}_", invert=True)
+    cwr.add_define(f"_LINKER_BINDINGS_{_display_name}_{suffix}_")
+
+    for func in _binding_data:
+        cwr.add_lines(f"{func}{';' if _header == True else ''}")
+
+    cwr.end_if_def()
+    with open(_target_file_path, 'w') as header_file:
+        header_file.write(str(cwr))
 
 # ================================================================================================================
 # ================================================================================================================
