@@ -51,9 +51,10 @@ def test_valid_config_file_one():
     data = configure.load_config_file("tests/test_one.json", "tests/mods")
     configure.verify_widget_contents(data.get("widgets"), "tests/mods")
     configure.make_output_directory(True, "/tests/generated")
-    widget_data = configure.compile_linker_widget_data(data.get("widgets"), "tests/mods", "tests/generated")
+    widget_data = configure.compile_config_widget_files(data.get("widgets"), "tests/mods", "tests/generated")
     configure.make_target_directories(widget_data, "tests/generated")
-    configure.translate_target_files(widget_data, "tests/generated")
+    file_map = configure.build_widget_file_map(widget_data)
+    configure.transpile_target_files(file_map, "/tests/mods", "tests/generated")
 
     assert Path("tests/generated/Test_One").is_dir()
     assert Path("tests/generated/Test_Two").is_dir()

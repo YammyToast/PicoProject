@@ -135,7 +135,8 @@ class InvalidFilePath(Exception):
         super().__init__(f"Couldn't find file: \'{_file_path_str}\'")
 
 class MissingAttribute(Exception):
-    pass
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
 
 class MissingAttributeType(Enum):
     MISSING = 0
