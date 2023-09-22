@@ -48,7 +48,7 @@ Uses test_one.json
 Correct File Translation Test
 """
 def test_valid_config_file_one():
-    data = configure.load_config_file("tests/test_one.json", "tests/mods")
+    data = configure.load_config_file("tests/data/test_one.json", "tests/mods")
     configure.verify_widget_contents(data.get("widgets"), "tests/mods")
     configure.make_output_directory(True, "/tests/generated")
     widget_data = configure.compile_config_widget_files(data.get("widgets"), "tests/mods", "tests/generated")
@@ -85,5 +85,5 @@ Missing attribute -> displayName
 """
 def test_bad_config_one():
     with pytest.raises(MissingAttribute) as attr:
-        data = configure.load_config_file("tests/test_two.json", "tests/mods")
+        data = configure.load_config_file("tests/data/test_two.json", "tests/mods")
     

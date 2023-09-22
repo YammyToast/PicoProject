@@ -29,6 +29,12 @@ void display(UWORD* black_image) {
          .width = 84,
          .height = 84 
     };
+
+    image_link image2 = {
+        .ref = "./resizedimage.png",
+        .width = 84,
+        .height = 84 
+    };
 }
 void thumbnail(UWORD* black_image) {
     int x = 0;

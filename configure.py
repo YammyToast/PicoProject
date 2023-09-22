@@ -57,7 +57,7 @@ BINDING_PARAM_DESCRIPTION_PATTERN = r"(.[\s])*\*.*[\s]*(@param) ([a-zA-Z*])+ ([\
 
 MAP_INCLUDE_PATTERN = r"\s*(#include){1}([\s\t ])+(\"[\w]+(\.h|\.c)\"){1}[\s\n ]*"
 
-TRANSLATE_IMAGE_DEFINITION_PATTERN = r"(image_link){1}([\t\s]+[\w]+[\t\s]*=[\t\s]*){1}({(.|\n)+};)"
+TRANSLATE_IMAGE_DEFINITION_PATTERN = r"(image_link){1}([\t\s]+[\w]+[\t\s]*=[\t\s]*){[\n\s\t\w.=\"\/\,\_\-]+};"
 TRANSLATE_IMAGE_REF_PATTERN = r"(.ref){1}([\w\t ]*=[\w\t ]*){1}((?!,).)+"
 TRANSLATE_IMAGE_PATH_PATTERN = r'^"(\.\.)*(\/|(?!\.\.)[a-zA-Z0-9_\-\/\.]+)+(\.[\w]+)"$'
 TRANSLATE_IMAGE_WIDTH_PATTERN = r'(.width){1}([\s\t\n ]*=[\s\t\n ]*){1}([0-9]+){1}([\s\t\n ]*)(?!,}){1}'
@@ -417,7 +417,8 @@ def replace_image_declarations(_file_data: str, _source_directory: str) -> str:
         data_buf = [_file_data]
         translated_files = []
         while (x := re.search(TRANSLATE_IMAGE_DEFINITION_PATTERN, working_file_data)):
-            image_slice = working_file_data[x.span()[0]:x.span()[1]].replace("\n", "")
+            image_slice = working_file_data[x.span()[0]:x.span()[1]]
+            print(image_slice)
             if (h := re.search(TRANSLATE_IMAGE_HEIGHT_PATTERN, image_slice)) == None:
                 raise ImageRefError(image_slice, ImageRefErrorType.NOHEIGHT)
             image_height = image_slice[h.span()[0]:h.span()[1]].replace(" ", "").split("=")[-1]
@@ -455,11 +456,13 @@ def replace_image_declarations(_file_data: str, _source_directory: str) -> str:
             data_buf.append(f"""{IMG_BUFFER_TYPE} {var_name} = {image_uuid};""")
             data_buf.append(working_file_data[x.span()[1]:])
 
-            working_file_data = _file_data[x.span()[1]:]
-    
+            working_file_data = working_file_data[x.span()[1]:]
+            print("DAT", working_file_data)
+
         new_file_data = "".join(data_buf)
 
         for include in translated_files:
+            # throw the includes at the start lol
             new_file_data = f"#include \"{include.uuid}.c\"\n{new_file_data}"
 
         return (new_file_data, translated_files)
