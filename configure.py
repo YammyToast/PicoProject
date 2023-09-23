@@ -468,7 +468,7 @@ def replace_image_declarations(_file_data: str, _source_directory: str) -> str:
         print(e)
         raise
 
-def write_image_data_files(_translated_files: list[ImageLink], _assets_directory: str = "./generated/assets"):
+def write_image_data_files(_translated_files: list[ImageLink], _assets_directory: str):
     try:
         for file in _translated_files:
             img_size = int(file.width) * int(file.height)
@@ -507,7 +507,7 @@ def write_image_data_files(_translated_files: list[ImageLink], _assets_directory
     except OSError:
         raise
 
-def transpile_target_files(_file_map: list[MapGrouping], _origin_directory: str, _target_directory: str):
+def transpile_target_files(_file_map: list[MapGrouping], _origin_directory: str, _target_directory: str, _assets_dir: str = "./generated/assets"):
     for widget_name, widget_file_map in _file_map.items():
         image_source_directory = os.path.normpath(widget_file_map.rel_widget.origin_location)
         # image_target_directory = os.path.join(_target_directory, widget_file_map.rel_widget.display_name)
@@ -524,7 +524,7 @@ def transpile_target_files(_file_map: list[MapGrouping], _origin_directory: str,
             file_data, translated_files = replace_image_declarations(file_data, image_source_directory)
 
             if len(translated_files) > 0:
-                write_image_data_files(translated_files)
+                write_image_data_files(translated_files, _assets_dir)
 
             target_path = os.path.join(_target_directory, widget_name, file.path_stripped)
             with open(target_path, 'w') as file_writer:
