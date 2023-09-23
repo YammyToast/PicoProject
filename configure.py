@@ -418,7 +418,6 @@ def replace_image_declarations(_file_data: str, _source_directory: str) -> str:
         translated_files = []
         while (x := re.search(TRANSLATE_IMAGE_DEFINITION_PATTERN, working_file_data)):
             image_slice = working_file_data[x.span()[0]:x.span()[1]]
-            print(image_slice)
             if (h := re.search(TRANSLATE_IMAGE_HEIGHT_PATTERN, image_slice)) == None:
                 raise ImageRefError(image_slice, ImageRefErrorType.NOHEIGHT)
             image_height = image_slice[h.span()[0]:h.span()[1]].replace(" ", "").split("=")[-1]
@@ -457,7 +456,6 @@ def replace_image_declarations(_file_data: str, _source_directory: str) -> str:
             data_buf.append(working_file_data[x.span()[1]:])
 
             working_file_data = working_file_data[x.span()[1]:]
-            print("DAT", working_file_data)
 
         new_file_data = "".join(data_buf)
 
