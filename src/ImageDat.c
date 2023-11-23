@@ -1,3 +1,5 @@
+#include "DEV_Config.h"
+#include "GUI_Paint.h"
 #ifndef IMAGE_DAT
 #define IMAGE_DAT
 

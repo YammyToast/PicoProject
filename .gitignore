@@ -5,3 +5,8 @@ generated
 mods
 linker.c
 linker.h
+
+__pycache__
+.pytest_cache
+
+./*.md

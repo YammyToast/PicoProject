@@ -12,11 +12,9 @@
 
 void opening_screen_update_callback(int*, UWORD*);
 
-int initialize_settings(UDOUBLE, UWORD*);
+int initialize_settings(UWORD*, UDOUBLE);
 
 int opening_screen(UWORD*);
-
-int main_menu(UWORD*);
 
 void render_frame(
     int,
@@ -24,7 +22,8 @@ void render_frame(
     int,
     const float*,
     UWORD,
-    UWORD);
+    UWORD
+);
 
 enum window_state;
 

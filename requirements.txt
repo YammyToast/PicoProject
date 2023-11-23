@@ -1,1 +1,5 @@
 csnake
+pytest
+mdutils
+Pillow
+argparse
