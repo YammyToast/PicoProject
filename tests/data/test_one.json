@@ -1,0 +1,22 @@
+{
+    "widgets": [
+        {
+            "displayName": "Test One",
+            "headerPath": "/testone/testone.h",
+            "mainPath": "/testone/testone.c",
+            "bindings": "/testone/bindings.h"
+        },
+        {
+            "displayName": "Test Two",
+            "headerPath": "/testtwo/testtwo.h",
+            "mainPath": "/testtwo/testtwo.c",
+            "bindings": "/testtwo/bindings.h"
+        }
+    ],
+    "personality": {
+        "displayName": "PersonalityOne",
+        "scriptBindings": "/personalityone/bindings.c"
+
+    }
+
+}

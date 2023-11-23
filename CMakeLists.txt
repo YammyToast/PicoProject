@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.12)
 
-include(/home/yames/Documents/pico-sdk/external/pico_sdk_import.cmake)
+# set(PICO_SDK_PATH ~/Code/pico-sdk)
+include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+# include(/home/yames/Documents/pico-sdk/external/pico_sdk_import.cmake)
 #include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 #include(../../pico-sdk/external/pico_sdk_import.cmake)
 
-project(pico_main VERSION 0.1 LANGUAGES C CXX ASM)
+project(pico_main VERSION 0.2 LANGUAGES C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 

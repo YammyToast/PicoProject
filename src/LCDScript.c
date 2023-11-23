@@ -25,7 +25,7 @@ enum window_state {
 };
 
 
-int initialize_settings(UDOUBLE _image_size, UWORD *_black_image) {
+int initialize_settings(UWORD* _black_image, UDOUBLE _image_size) {
     DEV_Delay_ms(100);
     if(DEV_Module_Init()!=0){
         return -1;

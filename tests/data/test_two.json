@@ -1,0 +1,14 @@
+{
+    "widgets": [
+        {
+            "headerPath": "/testone/testone.h",
+            "mainPath": "/testone/testone.c",
+            "scripts": "."
+        },
+        {
+            "displayName": "Test Two",
+            "mainPath": "/testtwo/testtwo.c"
+        }
+    ]
+
+}
